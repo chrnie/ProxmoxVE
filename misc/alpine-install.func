@@ -6,8 +6,8 @@
 if ! command -v curl >/dev/null 2>&1; then
   apk update && apk add curl >/dev/null 2>&1
 fi
-source <(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/misc/core.func)
-source <(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/misc/error_handler.func)
+source <(curl -fsSL https://raw.githubusercontent.com/chrnie/ProxmoxVE/feature/icinga/misc/core.func)
+source <(curl -fsSL https://raw.githubusercontent.com/chrnie/ProxmoxVE/feature/icinga/misc/error_handler.func)
 load_functions
 catch_errors
 
@@ -121,7 +121,7 @@ network_check() {
 update_os() {
   msg_info "Updating Container OS"
   $STD apk -U upgrade
-  source <(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/misc/tools.func)
+  source <(curl -fsSL https://raw.githubusercontent.com/chrnie/ProxmoxVE/feature/icinga/misc/tools.func)
   msg_ok "Updated Container OS"
 }
 
@@ -181,7 +181,7 @@ EOF
     msg_ok "Customized Container"
   fi
 
-  echo "bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/${app}.sh)\"" >/usr/bin/update
+  echo "bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/chrnie/ProxmoxVE/feature/icinga/ct/${app}.sh)\"" >/usr/bin/update
   chmod +x /usr/bin/update
 
 }
