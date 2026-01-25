@@ -402,10 +402,10 @@ systemctl reload icinga2 || { msg_error "Failed to reload Icinga2"; exit 1; }
 icingacli director kickstart run || { msg_error "Failed to run director kickstart"; exit 1; }
 msg_ok "Installed and enabled nbuchwitz's Proxmox VE module and plugin"
 
-msg_info "Installing Icinga Web 2 Maps module"
-git clone https://github.com/nbuchwitz/icingaweb2-module-map.git /usr/share/icingaweb2/modules/maps || { msg_error "Failed to clone Maps module"; exit 1; }
-icingacli module enable maps || { msg_error "Failed to enable maps module"; exit 1; }
-msg_ok "Installed and enabled nbuchwitz's Maps module"
+msg_info "Installing Icinga Web 2 map module"
+git clone https://github.com/nbuchwitz/icingaweb2-module-map.git /usr/share/icingaweb2/modules/map || { msg_error "Failed to clone Maps module"; exit 1; }
+icingacli module enable map || { msg_error "Failed to enable maps module"; exit 1; }
+msg_ok "Installed and enabled nbuchwitz's map module"
 
 msg_info "Enabling additional Icinga Web 2 modules"
 icingacli module enable businessprocess || msg_error "Warning: Failed to enable businessprocess module"
