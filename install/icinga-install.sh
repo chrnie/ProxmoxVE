@@ -391,6 +391,7 @@ msg_ok "Created Icinga Director host for local container"
 icingacli director config deploy || { msg_error "Failed to deploy Icinga Director configuration"; exit 1; }
 msg_ok "Deployed Icinga Director configuration"
 
+msg_info "Installing Icinga Proxmox VE tools"
 git clone https://github.com/nbuchwitz/icingaweb2-module-pve /usr/share/icingaweb2/modules/pve || { msg_error "Failed to clone Proxmox VE module"; exit 1; }
 wget https://raw.githubusercontent.com/nbuchwitz/check_pve/refs/heads/main/check_pve.py -O /usr/lib64/nagios/plugins/check_pve.py || { msg_error "Failed to download check_pve.py"; exit 1; }
 chmod +x /usr/lib64/nagios/plugins/check_pve.py || { msg_error "Failed to set check_pve.py executable"; exit 1; }
@@ -402,11 +403,11 @@ icingacli director kickstart run || { msg_error "Failed to run director kickstar
 msg_ok "Installed and enabled nbuchwitz's Proxmox VE module and plugin"
 
 msg_info "Installing Icinga Web 2 Maps module"
-git clone https://github.com/Icinga/icingaweb2-module-maps.git /usr/share/icingaweb2/modules/maps || { msg_error "Failed to clone Maps module"; exit 1; }
+git clone https://github.com/nbuchwitz/icingaweb2-module-map.git /usr/share/icingaweb2/modules/maps || { msg_error "Failed to clone Maps module"; exit 1; }
 icingacli module enable maps || { msg_error "Failed to enable maps module"; exit 1; }
-msg_ok "Installed and enabled Maps module"
+msg_ok "Installed and enabled nbuchwitz's Maps module"
 
-
+msg_info "Enabling additional Icinga Web 2 modules"
 icingacli module enable businessprocess || msg_error "Warning: Failed to enable businessprocess module"
 icingacli module enable cube || msg_error "Warning: Failed to enable cube module"
 icingacli module enable incubator || msg_error "Warning: Failed to enable incubator module"
