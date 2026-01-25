@@ -356,7 +356,7 @@ git clone https://github.com/Linuxfabrik/monitoring-plugins.git /opt/monitoring-
 cd /opt/monitoring-plugins || { msg_error "Failed to change to monitoring plugins directory"; exit 1; }
 git checkout v2.2.1 || { msg_error "Failed to checkout monitoring plugins version"; exit 1; }
 tools/basket-join || { msg_error "Failed to join basket"; exit 1; }
-icingacli director basket restore < icingaweb2-module-director-basket.json -v || { msg_error "Failed to restore director basket"; exit 1; }
+icingacli director basket restore < icingaweb2-module-director-basket.json || { msg_error "Failed to restore director basket"; exit 1; }
 msg_ok "Imported Icinga Director Linuxfabrik monitoring basket"
 
 icingacli director host create "$FQDN" --json "{
@@ -402,6 +402,10 @@ systemctl reload icinga2 || { msg_error "Failed to reload Icinga2"; exit 1; }
 icingacli director kickstart run || { msg_error "Failed to run director kickstart"; exit 1; }
 msg_ok "Installed and enabled nbuchwitz's Proxmox VE module and plugin"
 
+msg_info "Installing Icinga Web 2 Maps module"
+git clone https://github.com/Icinga/icingaweb2-module-maps.git /usr/share/icingaweb2/modules/maps || { msg_error "Failed to clone Maps module"; exit 1; }
+icingacli module enable maps || { msg_error "Failed to enable maps module"; exit 1; }
+msg_ok "Installed and enabled Maps module"
 
 
 icingacli module enable businessprocess || msg_error "Warning: Failed to enable businessprocess module"
