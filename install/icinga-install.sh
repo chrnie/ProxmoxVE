@@ -16,7 +16,6 @@ update_os
 DIST=$(awk -F"[)(]+" '/VERSION=/ {print $2}' /etc/os-release)
 FQDN=$(hostname -f)
 
-
 msg_info "Setting up Icinga Repository"
 wget -O icinga-archive-keyring.deb "https://packages.icinga.com/icinga-archive-keyring_latest+debian$(
  . /etc/os-release; echo "$VERSION_ID"
@@ -410,7 +409,6 @@ msg_ok "Installed and enabled Maps module"
 
 icingacli module enable businessprocess || msg_error "Warning: Failed to enable businessprocess module"
 icingacli module enable cube || msg_error "Warning: Failed to enable cube module"
-#icingacli module enable notification
 icingacli module enable incubator || msg_error "Warning: Failed to enable incubator module"
 icingacli module enable director || msg_error "Warning: Failed to enable director module"
 icingacli module disable setup || msg_error "Warning: Failed to disable setup module"
