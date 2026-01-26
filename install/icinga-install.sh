@@ -18,7 +18,7 @@ FQDN=$(hostname -f)
 
 msg_info "Setting up Icinga Repository"
 wget -q -O icinga-archive-keyring.deb "https://packages.icinga.com/icinga-archive-keyring_latest+debian${VERSION_ID}.deb" || { msg_error "Failed to download Icinga archive keyring"; exit 1; }
-apt install -qq -y ./icinga-archive-keyring.deb > /dev/null || { msg_error "Failed to install Icinga archive keyring"; exit 1; }
+apt-get install -qq -y ./icinga-archive-keyring.deb > /dev/null || { msg_error "Failed to install Icinga archive keyring"; exit 1; }
 echo "deb [signed-by=/usr/share/keyrings/icinga-archive-keyring.gpg] https://packages.icinga.com/debian icinga-${VERSION_CODENAME} main" > /etc/apt/sources.list.d/${VERSION_CODENAME}-icinga.list || { msg_error "Failed to add Icinga repository"; exit 1; }
 msg_ok "Set up Icinga Repository"
 
@@ -273,8 +273,7 @@ chown -R root:icingaweb2 /etc/icingaweb2/modules/x509 || { msg_error "Failed to 
 chmod 660 /etc/icingaweb2/modules/x509/config.ini || { msg_error "Failed to set x509 file permissions"; exit 1; }
 icingacli module enable x509 || { msg_error "Failed to enable x509 module"; exit 1; }
 msg_ok "Configured x509 module"
-echo "test"
-#msg_info "Setting up x509 scan job"
+
 while true; do
     echo
     read -rp "Add a network to the x509 certificate module[Y/n]: " X509_LAN_CIDR
@@ -310,9 +309,9 @@ EOF
         break
     fi
 done
-msg_ok "Configured x509 module"
+msg_ok "Set up x509 scan job"
 
-msg_info
+msg_info "Configuring Notifications module"
 mysql notifications < /usr/share/icinga-notifications/schema/mysql/schema.sql || { msg_error "Failed to import notifications schema"; exit 1; }
 mkdir -p /etc/icingaweb2/modules/notifications || { msg_error "Failed to create notifications module directory"; exit 1; }
 cat <<EOF >/etc/icingaweb2/modules/notifications/config.ini || { msg_error "Failed to create notifications config"; exit 1; }
