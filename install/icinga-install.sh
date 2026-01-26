@@ -116,6 +116,7 @@ msg_ok "Configured IcingaDB daemon connection to mysql database"
 icinga2 node setup --master --disable-confd || { msg_error "Failed to setup Icinga2 node"; exit 1; }
 icinga2 feature enable icingadb || { msg_error "Failed to enable Icinga2 IcingaDB feature"; exit 1; }
 ICINGA_API_ROOT_PW=$(grep 'password' /etc/icinga2/conf.d/api-users.conf | sed 's/.*password = \"//;s/"$//') || { msg_error "Failed to retrieve Icinga API password"; exit 1; }
+usermod -aG icingaweb2 nagios || { msg_error "Failed to add nagios user to icingaweb2 group"; exit 1; }
 systemctl restart icinga2 || { msg_error "Failed to restart Icinga2"; exit 1; }
 msg_ok "Configured Icinga2 API"
 
