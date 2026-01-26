@@ -391,207 +391,40 @@ icingacli director host create "$FQDN" --json "{
     }
 }" || { msg_error "Failed to create Icinga Director host"; exit 1; }
 msg_ok "Created Icinga Director host for local container"
-cat <<EOF >/tmp/x509_basket.json
-{
-    "ExternalCommand": {
-        "icingacli-x509": {
-            "arguments": {
-                "--allow-self-signed": {
-                    "description": "Ignore if a certificate or its issuer has been self-signed",
-                    "set_if": "$icingacli_x509_allow_self_signed$"
-                },
-                "--critical": {
-                    "description": "Less remaining time results in state CRITICAL",
-                    "value": "$icingacli_x509_critical$"
-                },
-                "--host": {
-                    "description": "A hosts name",
-                    "value": "$icingacli_x509_host$"
-                },
-                "--ip": {
-                    "description": "A hosts IP address",
-                    "value": "$icingacli_x509_ip$"
-                },
-                "--port": {
-                    "description": "The port to check in particular",
-                    "value": "$icingacli_x509_port$"
-                },
-                "--warning": {
-                    "description": "Less remaining time results in state WARNING",
-                    "value": "$icingacli_x509_warning$"
-                }
-            },
-            "command": "/usr/bin/icingacli x509 check host",
-            "fields": [
-                {
-                    "datafield_id": 1881,
-                    "is_required": "n",
-                    "var_filter": null
-                }
-            ],
-            "methods_execute": "PluginCheck",
-            "object_name": "icingacli-x509",
-            "object_type": "external_object",
-            "timeout": 60,
-            "uuid": "4c11d751-9a59-4b8c-88d9-3357c64fe57e"
-        }
-    },
-    "ServiceTemplate": {
-        "tpl-service-x509-cert": {
-            "check_command": "icingacli-x509",
-            "fields": [],
-            "imports": [
-                "tpl-service-generic"
-            ],
-            "object_name": "tpl-service-x509-cert",
-            "object_type": "template",
-            "use_agent": false,
-            "uuid": "fcf7dad8-091b-4c1d-998d-2f077d97fcf4",
-            "vars": {
-                "criticality": "B",
-                "icingacli_x509_host": "$host.name$"
-            }
-        }
-    },
-    "ServiceSet": {
-        "Certificate x509 Module": {
-            "assign_filter": "\"x509-certs\"=host.vars.tags",
-            "description": "checks the certificate state agains the internal database, using icingacli",
-            "object_name": "Certificate x509 Module",
-            "object_type": "template",
-            "services": [
-                {
-                    "fields": [],
-                    "imports": [
-                        "tpl-service-x509-cert"
-                    ],
-                    "object_name": "tpl-service-x509-cert",
-                    "object_type": "object",
-                    "uuid": "5efa4136-a59c-4c28-9d18-035fb6f9d7c8"
-                }
-            ],
-            "uuid": "03280e01-08fa-45cb-aad6-a035856ec56a"
-        }
-    },
-    "ImportSource": {
-        "x509-hosts": {
-            "key_column": "host_name",
-            "modifiers": [
-                {
-                    "priority": "1",
-                    "property_name": "host_address",
-                    "provider_class": "Icinga\\Module\\Director\\PropertyModifier\\PropertyModifierRegexReplace",
-                    "settings": {
-                        "pattern": "/^.*$/",
-                        "replacement": "x509-certs",
-                        "string": "*",
-                        "when_not_matched": "keep"
-                    },
-                    "target_property": "tags"
-                },
-                {
-                    "priority": "2",
-                    "property_name": "tags",
-                    "provider_class": "Icinga\\Module\\Director\\PropertyModifier\\PropertyModifierSplit",
-                    "settings": {
-                        "delimiter": ",",
-                        "when_empty": "empty_array"
-                    },
-                    "target_property": "tags"
-                }
-            ],
-            "provider_class": "Icinga\\Module\\X509\\ProvidedHook\\HostsImportSource",
-            "settings": {},
-            "source_name": "x509-hosts"
-        }
-    },
-    "SyncRule": {
-        "sync-x509-hosts": {
-            "object_type": "host",
-            "properties": [
-                {
-                    "destination_field": "object_name",
-                    "filter_expression": null,
-                    "merge_policy": "override",
-                    "priority": "1",
-                    "source": "x509-hosts",
-                    "source_expression": "${host_name_or_ip}"
-                },
-                {
-                    "destination_field": "import",
-                    "filter_expression": null,
-                    "merge_policy": "override",
-                    "priority": "2",
-                    "source": "x509-hosts",
-                    "source_expression": "tpl-host-without-ping"
-                },
-                {
-                    "destination_field": "vars.tags",
-                    "filter_expression": null,
-                    "merge_policy": "merge",
-                    "priority": "3",
-                    "source": "x509-hosts",
-                    "source_expression": "${tags}"
-                }
-            ],
-            "purge_action": "delete",
-            "purge_existing": true,
-            "rule_name": "sync-x509-hosts",
-            "update_policy": "merge"
-        }
-    },
-    "DirectorJob": {
-        "10: Import x509 Hosts": {
-            "disabled": "n",
-            "job_class": "Icinga\\Module\\Director\\Job\\ImportJob",
-            "job_name": "10: Import x509 Hosts",
-            "run_interval": "900",
-            "settings": {
-                "run_import": "y",
-                "source": "x509-hosts"
-            },
-            "timeperiod": "7x24"
-        },
-        "20: Sync x509 data to Host Objects": {
-            "disabled": "n",
-            "job_class": "Icinga\\Module\\Director\\Job\\SyncJob",
-            "job_name": "20: Sync x509 data to Host Objects",
-            "run_interval": "900",
-            "settings": {
-                "apply_changes": true,
-                "rule": "sync-x509-hosts"
-            },
-            "timeperiod": "7x24"
-        },
-        "30: Deploy Config": {
-            "disabled": "n",
-            "job_class": "Icinga\\Module\\Director\\Job\\ConfigJob",
-            "job_name": "30: Deploy Config",
-            "run_interval": "900",
-            "settings": {
-                "deploy_when_changed": "y",
-                "force_generate": "n",
-                "grace_period": "600"
-            },
-            "timeperiod": "7x24"
-        }
-    },
-    "Datafield": {
-        "1881": {
-            "uuid": "e89e3cc3-1771-4df0-b492-ff8bd652c236",
-            "varname": "icingacli_x509_host",
-            "caption": "icingacli_x509_host",
-            "description": "A hosts name",
-            "datatype": "Icinga\\Module\\Director\\DataType\\DataTypeString",
-            "format": null,
-            "settings": {},
-            "category": null
-        }
-    }
-}
+base64 -d <<'EOF' >/tmp/x509_basket.json.gz
+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
+K9+8ev4Ps1OGN+0bAAA=
 EOF
-icingacli director basket restore < /tmp/x509_basket.json || { msg_error "Failed to restore x509 basket"; exit 1; }
-rm -f /tmp/x509_basket.json
+gunzip -c /tmp/x509_basket.json.gz | icingacli director basket restore || { msg_error "Failed to restore x509 basket"; exit 1; }
+rm -f /tmp/x509_basket.json.gz
 msg_ok "Imported Icinga Director x509 monitoring basket"
 icingacli director config deploy || { msg_error "Failed to deploy Icinga Director configuration"; exit 1; }
 msg_ok "Deployed Icinga Director configuration"
