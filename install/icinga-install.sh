@@ -18,7 +18,7 @@ FQDN=$(hostname -f)
 
 msg_info "Setting up Icinga Repository"
 wget -q -O icinga-archive-keyring.deb "https://packages.icinga.com/icinga-archive-keyring_latest+debian${VERSION_ID}.deb" || { msg_error "Failed to download Icinga archive keyring"; exit 1; }
-apt install -y -qq ./icinga-archive-keyring.deb || { msg_error "Failed to install Icinga archive keyring"; exit 1; }
+apt install -qq -y ./icinga-archive-keyring.deb || { msg_error "Failed to install Icinga archive keyring"; exit 1; }
 echo "deb [signed-by=/usr/share/keyrings/icinga-archive-keyring.gpg] https://packages.icinga.com/debian icinga-${VERSION_CODENAME} main" > \
  /etc/apt/sources.list.d/${VERSION_CODENAME}-icinga.list || { msg_error "Failed to add Icinga repository"; exit 1; }
 msg_ok "Set up Icinga Repository"
