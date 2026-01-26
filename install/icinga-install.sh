@@ -13,48 +13,38 @@ setting_up_container
 network_check
 update_os
 
-DIST=$(awk -F"[)(]+" '/VERSION=/ {print $2}' /etc/os-release)
+source /etc/os-release
 FQDN=$(hostname -f)
 
 msg_info "Setting up Icinga Repository"
-wget -O icinga-archive-keyring.deb "https://packages.icinga.com/icinga-archive-keyring_latest+debian$(. /etc/os-release; echo "$VERSION_ID").deb" || { msg_error "Failed to download Icinga archive keyring"; exit 1; }
+wget -q -O icinga-archive-keyring.deb "https://packages.icinga.com/icinga-archive-keyring_latest+debian${VERSION_ID}.deb" || { msg_error "Failed to download Icinga archive keyring"; exit 1; }
 apt install -y -qq ./icinga-archive-keyring.deb || { msg_error "Failed to install Icinga archive keyring"; exit 1; }
-echo "deb [signed-by=/usr/share/keyrings/icinga-archive-keyring.gpg] https://packages.icinga.com/debian icinga-${DIST} main" > \
- /etc/apt/sources.list.d/${DIST}-icinga.list || { msg_error "Failed to add Icinga repository"; exit 1; }
+echo "deb [signed-by=/usr/share/keyrings/icinga-archive-keyring.gpg] https://packages.icinga.com/debian icinga-${VERSION_CODENAME} main" > \
+ /etc/apt/sources.list.d/${VERSION_CODENAME}-icinga.list || { msg_error "Failed to add Icinga repository"; exit 1; }
 msg_ok "Set up Icinga Repository"
 
 msg_info "Adding Netways extras and plugins repository"
-wget -O - https://packages.netways.de/netways-repo.asc | gpg --dearmor > /etc/apt/keyrings/netways.gpg || { msg_error "Failed to add Netways GPG key"; exit 1; }
-
-echo "deb [signed-by=/etc/apt/keyrings/netways.gpg] https://packages.netways.de/extras/debian ${DIST} main" > /etc/apt/sources.list.d/netways-extras.list || { msg_error "Failed to add Netways extras repository"; exit 1; }
-echo "deb [signed-by=/etc/apt/keyrings/netways.gpg] https://packages.netways.de/plugins/debian ${DIST} main" > /etc/apt/sources.list.d/netways-plugins.list || { msg_error "Failed to add Netways plugins repository"; exit 1; }
+wget -q -O - https://packages.netways.de/netways-repo.asc | gpg --dearmor > /etc/apt/keyrings/netways.gpg || { msg_error "Failed to add Netways GPG key"; exit 1; }
+echo "deb [signed-by=/etc/apt/keyrings/netways.gpg] https://packages.netways.de/extras/debian ${VERSION_CODENAME} main" > /etc/apt/sources.list.d/netways-extras.list || { msg_error "Failed to add Netways extras repository"; exit 1; }
+echo "deb [signed-by=/etc/apt/keyrings/netways.gpg] https://packages.netways.de/plugins/debian ${VERSION_CODENAME} main" > /etc/apt/sources.list.d/netways-plugins.list || { msg_error "Failed to add Netways plugins repository"; exit 1; }
 msg_ok "Set up Netways Repositories"
-
 
 msg_info "Adding Linuxfabrik plugins repository"
 mkdir -p /etc/apt/keyrings || { msg_error "Failed to create /etc/apt/keyrings directory"; exit 1; }
 wget https://repo.linuxfabrik.ch/linuxfabrik.key --output-document=/etc/apt/keyrings/linuxfabrik.asc || { msg_error "Failed to download Linuxfabrik GPG key"; exit 1; }
-source /etc/os-release
-echo "deb [signed-by=/etc/apt/keyrings/linuxfabrik.asc] https://repo.linuxfabrik.ch/monitoring-plugins/debian/ $VERSION_CODENAME-release main" > /etc/apt/sources.list.d/linuxfabrik-monitoring-plugins.list || { msg_error "Failed to add Linuxfabrik repository"; exit 1; }
+echo "deb [signed-by=/etc/apt/keyrings/linuxfabrik.asc] https://repo.linuxfabrik.ch/monitoring-plugins/debian/ ${VERSION_CODENAME}-release main" > /etc/apt/sources.list.d/linuxfabrik-monitoring-plugins.list || { msg_error "Failed to add Linuxfabrik repository"; exit 1; }
 msg_ok "Set up Linuxfabrik plugins repository"
 
 msg_info "Installing Icinga"
 apt-get update -qq || { msg_error "Failed to update package manager"; exit 1; }
-apt-get install -y -qq \
-  icinga2 icingaweb2 icingadb icingadb-redis \
-  pwgen imagemagick php-imagick \
-  apache2 mariadb-server openssh-server \
-  icingadb-web icinga-director icinga-businessprocess \
-  icinga-cube icinga-notifications-web icinga-notifications icinga-x509 \
-  icingaweb2-module-reporting \
-  icingaweb2-module-perfdatagraphs-influxdbv1 \
-  icingaweb2-module-perfdatagraphs-influxdbv2 \
-  icingaweb2-module-perfdatagraphs \
-  linuxfabrik-monitoring-plugins \
-  vim git redis-tools > /dev/null 2>&1 || { msg_error "Failed to install Icinga packages"; exit 1; }
+apt-get install -qq -y \
+  icinga2 icingaweb2 icingadb icingadb-redis imagemagick php-imagick apache2 mariadb-server openssh-server \
+  icingadb-web icinga-director icinga-businessprocess icinga-cube icinga-notifications-web icinga-notifications icinga-x509 icingaweb2-module-reporting \
+  icingaweb2-module-perfdatagraphs-influxdbv1 icingaweb2-module-perfdatagraphs-influxdbv2 icingaweb2-module-perfdatagraphs \
+  linuxfabrik-monitoring-plugins vim git redis-tools pwgen > /dev/null || { msg_error "Failed to install Icinga packages"; exit 1; }
+msg_ok "Installed Icinga"
 
-
-# Disable Apache default site and redirect / to /icingaweb2
+msg_info "Disable Apache default site and redirect / to /icingaweb2"
 a2dissite 000-default.conf || msg_error "Warning: Failed to disable default Apache site"
 cat <<EOF >/etc/apache2/sites-available/icingaweb2-redirect.conf || { msg_error "Failed to create Apache configuration"; exit 1; }
 <VirtualHost *:80>
@@ -69,11 +59,11 @@ systemctl reload apache2 || { msg_error "Failed to reload Apache"; exit 1; }
 
 # Enable and start services
 systemctl enable icinga2 apache2 mariadb --now || { msg_error "Failed to enable and start services"; exit 1; }
-msg_ok "Installed Icinga"
+msg_info "Started and enabled Services"
 
-msg_info "Configuring Icinga"
 
-# Generate random passwords if not set
+msg_info "Create Local Databases and Users for Icinga"
+# Generate random passwords if not preset
 ICINGA_DB_PW="${ICINGA_DB_PW:-$(pwgen -s 20 1)}"
 ICINGAWEB_DB_PW="${ICINGAWEB_DB_PW:-$(pwgen -s 20 1)}"
 NOTIFICATIONS_DB_PW="${NOTIFICATIONS_DB_PW:-$(pwgen -s 20 1)}"
@@ -81,7 +71,6 @@ DIRECTOR_DB_PW="${DIRECTOR_DB_PW:-$(pwgen -s 20 1)}"
 X509_DB_PW="${X509_DB_PW:-$(pwgen -s 20 1)}"
 REPORTING_DB_PW="${REPORTING_DB_PW:-$(pwgen -s 20 1)}"
 ICINGAWEB_ADMIN_PW="${ICINGAWEB_ADMIN_PW:-$(pwgen -s 12 1)}"
-
 
 cat <<EOF | mysql -u root || { msg_error "Failed to create databases"; exit 1; }
 CREATE DATABASE IF NOT EXISTS icingadb;
@@ -110,17 +99,17 @@ msg_ok "Imported IcingaDB schema"
 
 sed -i "s/password: CHANGEME/password: ${ICINGA_DB_PW}/g" /etc/icingadb/config.yml || { msg_error "Failed to configure IcingaDB password"; exit 1; }
 systemctl enable icingadb-redis icingadb --now || { msg_error "Failed to enable IcingaDB services"; exit 1; }
-systemctl restart icingadb || { msg_error "Failed to restart IcingaDB"; exit 1; }
 msg_ok "Configured IcingaDB daemon connection to mysql database"
 
 icinga2 node setup --master --disable-confd || { msg_error "Failed to setup Icinga2 node"; exit 1; }
 icinga2 feature enable icingadb || { msg_error "Failed to enable Icinga2 IcingaDB feature"; exit 1; }
 ICINGA_API_ROOT_PW=$(grep 'password' /etc/icinga2/conf.d/api-users.conf | sed 's/.*password = \"//;s/"$//') || { msg_error "Failed to retrieve Icinga API password"; exit 1; }
 usermod -aG icingaweb2 nagios || { msg_error "Failed to add nagios user to icingaweb2 group"; exit 1; }
-systemctl restart icinga2 || { msg_error "Failed to restart Icinga2"; exit 1; }
+systemctl restart icingadb icinga2 || { msg_error "Failed to restart Icinga2 or IcingaDB"; exit 1; }
 msg_ok "Configured Icinga2 API"
 
-cat <<EOF >/etc/icingaweb2/config.ini
+msg_info "Configuring Icinga Web 2"
+cat <<EOF >/etc/icingaweb2/config.ini || { msg_error "Failed to create Icinga Web 2 config.ini"; exit 1; }
 [global]
 show_stacktraces = "1"
 show_application_state_messages = "1"
@@ -135,29 +124,24 @@ level = "ERROR"
 application = "icingaweb2"
 facility = "user"
 EOF
-msg_ok "Created Icinga Web 2 config.ini"
-
-cat <<EOF >/etc/icingaweb2/authentication.ini
+cat <<EOF >/etc/icingaweb2/authentication.ini || { msg_error "Failed to create Icinga Web 2 authentication.ini"; exit 1; }
 [icingaweb2]
 backend = "db"
 resource = "icingaweb_db"
 EOF
-
-cat <<EOF >/etc/icingaweb2/groups.ini
+cat <<EOF >/etc/icingaweb2/groups.ini || { msg_error "Failed to create Icinga Web 2 groups.ini"; exit 1; }
 [icingaweb2]
 backend = "db"
 resource = "icingaweb_db"
 EOF
-
 cat <<EOF >/etc/icingaweb2/roles.ini
 [Administrators]
 users = "icingaadmin"
 permissions = "*"
 groups = "Administrators"
 EOF
-msg_ok "Created Icinga Web 2 authentication, groups, and roles ini files"
 
-cat <<EOF >/etc/icingaweb2/resources.ini
+cat <<EOF >/etc/icingaweb2/resources.ini || { msg_error "Failed to create Icinga Web 2 resources.ini"; exit 1; }
 [icingaweb_db]
 type = "db"
 db = "mysql"
@@ -215,11 +199,11 @@ username = "x509"
 password = "$X509_DB_PW"
 use_ssl = "0"
 EOF
-
 chown www-data:icingaweb2 /etc/icingaweb2/*.ini || { msg_error "Failed to set permissions on Icinga Web 2 config files"; exit 1; }
 chmod 660 /etc/icingaweb2/*.ini || { msg_error "Failed to set permissions on Icinga Web 2 config files"; exit 1; }
-msg_ok "Created Icinga Web 2 resources.ini"
+msg_ok "Created Icinga Web 2 config, resources, authentication, groups, and roles ini files"
 
+msg_info "Configuring Icinga Director module"
 icingacli module enable director || { msg_error "Failed to enable director module"; exit 1; }
 mkdir -p /etc/icingaweb2/modules/director || { msg_error "Failed to create director module directory"; exit 1; }
 cat <<EOF >/etc/icingaweb2/modules/director/config.ini || { msg_error "Failed to create director config.ini"; exit 1; }
@@ -239,8 +223,9 @@ chmod 660 /etc/icingaweb2/modules/director/*.ini || { msg_error "Failed to set d
 icingacli director migration run || { msg_error "Failed to run director migration"; exit 1; }
 icingacli director kickstart run || { msg_error "Failed to run director kickstart"; exit 1; }
 systemctl reload icinga-director.service || { msg_error "Failed to reload Icinga Director"; exit 1; }
-msg_ok "Configured Icinga Director module"
+msg_ok "Configured Icinga Director module and kickstarted it"
 
+msg_info "Configuring IcingaDB module"
 icingacli module enable icingadb || { msg_error "Failed to enable icingadb module"; exit 1; }
 mkdir -p /etc/icingaweb2/modules/icingadb || { msg_error "Failed to create icingadb module directory"; exit 1; }
 cat <<EOF >>/etc/icingaweb2/modules/icingadb/commandtransports.ini || { msg_error "Failed to create commandtransports.ini"; exit 1; } 
@@ -252,16 +237,14 @@ port = "5665"
 username = "root"
 password = "$ICINGA_API_ROOT_PW"
 EOF
-
-cat <<EOF >/etc/icingaweb2/modules/icingadb/config.ini
+cat <<EOF >/etc/icingaweb2/modules/icingadb/config.ini || { msg_error "Failed to create icingadb config.ini"; exit 1; }
 [icingadb]
 resource = "icingadb"
 
 [redis]
 tls = "0"
 EOF
- 
-cat <<EOF >/etc/icingaweb2/modules/icingadb/redis.ini
+cat <<EOF >/etc/icingaweb2/modules/icingadb/redis.ini || { msg_error "Failed to create icingadb redis.ini"; exit 1; }
 [redis1]
 host = "localhost"
 EOF
@@ -269,19 +252,19 @@ chown -R root:icingaweb2 /etc/icingaweb2/modules/icingadb || { msg_error "Failed
 chmod 660 /etc/icingaweb2/modules/icingadb/*.ini || { msg_error "Failed to set icingadb file permissions"; exit 1; }
 msg_ok "Configured IcingaDB module"
 
-
+msg_info "Configuring Reporting module"
 mkdir -p /etc/icingaweb2/modules/reporting || { msg_error "Failed to create reporting module directory"; exit 1; }
 cat <<EOF > /etc/icingaweb2/modules/reporting/config.ini || { msg_error "Failed to create reporting config"; exit 1; }
 [backend]
 resource = "reporting_db"
 EOF
-
 chown -R root:icingaweb2 /etc/icingaweb2/modules/reporting || { msg_error "Failed to set reporting permissions"; exit 1; }
 chmod 660 /etc/icingaweb2/modules/reporting/config.ini || { msg_error "Failed to set reporting file permissions"; exit 1; }
 mysql reporting < /usr/share/icingaweb2/modules/reporting/schema/mysql.schema.sql || { msg_error "Failed to import reporting schema"; exit 1; }
-mysql x509 < /usr/share/icingaweb2/modules/x509/schema/mysql.schema.sql || { msg_error "Failed to import x509 schema"; exit 1; }
 msg_ok "Configured Reporting module"
 
+msg_info "Configuring x509 module"
+mysql x509 < /usr/share/icingaweb2/modules/x509/schema/mysql.schema.sql || { msg_error "Failed to import x509 schema"; exit 1; }
 mkdir -p /etc/icingaweb2/modules/x509 || { msg_error "Failed to create x509 module directory"; exit 1; }
 cat <<EOF > /etc/icingaweb2/modules/x509/config.ini || { msg_error "Failed to create x509 config"; exit 1; }
 [backend]
@@ -291,8 +274,7 @@ chown -R root:icingaweb2 /etc/icingaweb2/modules/x509 || { msg_error "Failed to 
 chmod 660 /etc/icingaweb2/modules/x509/config.ini || { msg_error "Failed to set x509 file permissions"; exit 1; }
 icingacli module enable x509 || { msg_error "Failed to enable x509 module"; exit 1; }
 
-
-# Ask for before adding LAN network job
+msg_info "Setting up x509 scan job"
 while true; do
     read -rp "Add a network to the x509 certificate module[Y/n]: " X509_LAN_CIDR
     X509_LAN_CIDR=${X509_LAN_CIDR:-y}
@@ -319,19 +301,17 @@ schedule = "{\"rrule\":\"FREQ=DAILY\",\"frequency\":\"DAILY\",\"start\":\"${X509
 frequencyType = "ipl\\Scheduler\\RRule"
 EOF
         chmod 660 /etc/icingaweb2/modules/x509/config.ini || { msg_error "Failed to set x509 jobs.ini permissions"; exit 1; }
-        icingacli x509 migrate --author "proxmox init" --verbose || { msg_error "Failed to migrate x509 module"; exit 1; }
+        icingacli x509 migrate --author "proxmox init" || { msg_error "Failed to migrate x509 module"; exit 1; }
         systemctl restart icinga-x509.service
         icingacli x509 scan --job LAN --full || { msg_error "Failed to start x509 scan job"; exit 1; }
-        # Add basket with x509 automations
         break
     elif [[ "$X509_LAN_CIDR" == "n" ]]; then
         break
     fi
 done
-
-
 msg_ok "Configured x509 module"
 
+msg_info
 mysql notifications < /usr/share/icinga-notifications/schema/mysql/schema.sql || { msg_error "Failed to import notifications schema"; exit 1; }
 mkdir -p /etc/icingaweb2/modules/notifications || { msg_error "Failed to create notifications module directory"; exit 1; }
 cat <<EOF >/etc/icingaweb2/modules/notifications/config.ini || { msg_error "Failed to create notifications config"; exit 1; }
@@ -343,20 +323,19 @@ chmod 660 /etc/icingaweb2/modules/notifications/config.ini || { msg_error "Faile
 sed -i "s/password: CHANGEME/password: ${NOTIFICATIONS_DB_PW}/g" /etc/icinga-notifications/config.yml || { msg_error "Failed to configure notifications password"; exit 1; }
 sed -i "s/^icingaweb2-url: http.*/icingaweb2-url: http:\/\/${FQDN}\/icingaweb2/g" /etc/icinga-notifications/config.yml || { msg_error "Failed to configure notifications URL"; exit 1; }
 systemctl restart icinga-desktop-notifications.service || msg_error "Warning: Failed to restart notifications service"
-
 msg_ok "Configured notifications modules"
 
+msg_info "Creating Icinga Web 2 initial admin user"
 ICINGAWEB_ADMIN_PW_HASH=$(php -r "echo password_hash('$ICINGAWEB_ADMIN_PW', PASSWORD_DEFAULT);") || { msg_error "Failed to generate password hash"; exit 1; }
 mysql -D icingaweb < /usr/share/icingaweb2/schema/mysql.schema.sql || { msg_error "Failed to import Icinga Web schema"; exit 1; }
 mysql icingaweb -e "INSERT INTO icingaweb_user (name, active, password_hash) 
           VALUES ('icingaadmin', 1, '$ICINGAWEB_ADMIN_PW_HASH');" || { msg_error "Failed to create Icinga Web admin user"; exit 1; }
-
 msg_ok "Configured Icingaweb initial user"
 
-
+msg_info "Importing Icinga Director Linuxfabrik monitoring basket"
 git clone https://github.com/Linuxfabrik/monitoring-plugins.git /opt/monitoring-plugins || { msg_error "Failed to clone Linuxfabrik monitoring plugins"; exit 1; }
 cd /opt/monitoring-plugins || { msg_error "Failed to change to monitoring plugins directory"; exit 1; }
-git checkout v2.2.1 || { msg_error "Failed to checkout monitoring plugins version"; exit 1; }
+#git checkout v2.2.1 || { msg_error "Failed to checkout monitoring plugins version"; exit 1; }
 tools/basket-join > /dev/null || { msg_error "Failed to join basket"; exit 1; }
 icingacli director basket restore < icingaweb2-module-director-basket.json || { msg_error "Failed to restore director basket"; exit 1; }
 msg_ok "Imported Icinga Director Linuxfabrik monitoring basket"
@@ -391,7 +370,8 @@ icingacli director host create "$FQDN" --json "{
     }
 }" || { msg_error "Failed to create Icinga Director host"; exit 1; }
 msg_ok "Created Icinga Director host for local container"
-base64 -d <<'EOF' >/tmp/x509_basket.json.gz
+msg_info "Importing Icinga Director x509 monitoring basket"
+base64 -d <<'EOF' >/tmp/x509_basket.json.gz || { msg_error "Failed to create x509 basket file"; exit 1; }
 H4sICHqsdmkAA0RpcmVjdG9yLUJhc2tldF94NTA5XzgyODc4ZGUuanNvbgDNWW1v2zYQ/t5fIQj5
 VFSN5Ve5wD506bBmaLsiCbAB8ybQ1MlhI4kaSSUxgvz3HSnLLxJly40LLJ9s80jePXf33B3z9MrB
 P/eXRwUiI8kFT1OSRe4758ksmEVGWbYgNGHe46g33Vkz60QsihQyJRtLZtnzSJLwB09CEnuSLTKI
@@ -424,9 +404,10 @@ n2q8c249NtUfksn6EaeDdPf/e5gn46rrbI8njcoNSm0+XZdjXv1Nkguc56yFeW+brR+KFlws64/M
 K9+8ev4Ps1OGN+0bAAA=
 EOF
 gunzip -c /tmp/x509_basket.json.gz | icingacli director basket restore || { msg_error "Failed to restore x509 basket"; exit 1; }
-rm -f /tmp/x509_basket.json.gz
+rm -f /tmp/x509_basket.json.gz || { msg_error "Failed to remove temporary x509 basket file"; exit 1; }
 msg_ok "Imported Icinga Director x509 monitoring basket"
 
+msg_info "Running Icinga Director import and sync"
 icingacli director importsource run --id 1 || { msg_error "Failed to run import source"; exit 1; }
 icingacli director syncrule run --id 1 || { msg_error "Failed to run sync rule"; exit 1; }
 
@@ -457,12 +438,11 @@ icingacli module enable director || msg_error "Warning: Failed to enable directo
 icingacli module disable setup || msg_error "Warning: Failed to disable setup module"
 msg_ok "Enabled additional Icinga Web 2 modules"
 
-## Add influx connection?
-
-echo    
+msg_info "Setting up InfluxDB connection"
+echo 
 echo "--- InfluxDB connection for PerfData ---"
 while true; do
-    read -rp "Use remote InfluxDB server? (y/n): " INFLUX_REMOTE
+    echo ;read -rp "Use remote InfluxDB server? (y/n): " INFLUX_REMOTE
     if [[ "$INFLUX_REMOTE" == "y" || "$INFLUX_REMOTE" == "n" ]]; then break; fi
 done
 if [[ "$INFLUX_REMOTE" == "y" ]]; then
@@ -499,10 +479,11 @@ if [[ "$INFLUX_REMOTE" == "y" ]]; then
     INFLUX_BUCKET=${INFLUX_BUCKET:-icinga}
 
     if [[ "$INFLUX_VER" == "1" ]]; then
+        msg_info "Configuring InfluxDB v1 connection"
         read -rp "InfluxDB username: " INFLUX_USER
         read -rsp "InfluxDB password: " INFLUX_PW;
         
-        cat <<EOF >/etc/icinga2/features-available/influxdb.conf
+        cat <<EOF >/etc/icinga2/features-available/influxdb.conf || { msg_error "Failed to create InfluxDB v1 config"; exit 1; }
 object InfluxdbWriter "influxdb" {
 host = "$INFLUX_HOST"
 port = $INFLUX_PORT
@@ -527,8 +508,8 @@ service_template = {
 }
 }
 EOF
-        mkdir -p /etc/icingaweb2/modules/perfdatagraphsinfluxdbv1
-        cat <<EOF >/etc/icingaweb2/modules/perfdatagraphsinfluxdbv1/config.ini
+        mkdir -p /etc/icingaweb2/modules/perfdatagraphsinfluxdbv1 || { msg_error "Failed to create InfluxDB v1 module directory"; exit 1; }
+        cat <<EOF >/etc/icingaweb2/modules/perfdatagraphsinfluxdbv1/config.ini || { msg_error "Failed to create InfluxDB v1 config.ini"; exit 1; }
 [influx]
 api_url = "$INFLUX_PROTO://$INFLUX_HOST:$INFLUX_PORT"
 api_database = "$INFLUX_BUCKET"
@@ -536,19 +517,19 @@ api_username = "$INFLUX_USER"
 api_password = "$INFLUX_PW"
 api_tls_insecure = "${INFLUX_SSL_INSECURE_NUM:-0}"
 EOF
-        chown -R root:icingaweb2 /etc/icingaweb2/modules/perfdatagraphsinfluxdbv1
-        chmod 660 /etc/icingaweb2/modules/perfdatagraphsinfluxdbv1/config.ini
+        chown -R root:icingaweb2 /etc/icingaweb2/modules/perfdatagraphsinfluxdbv1 || { msg_error "Failed to set InfluxDB v1 module permissions"; exit 1; }
+        chmod 660 /etc/icingaweb2/modules/perfdatagraphsinfluxdbv1/config.ini || { msg_error "Failed to set InfluxDB v1 config.ini permissions"; exit 1; }
+        icingacli module enable perfdatagraphs || { msg_error "Failed to enable perfdatagraphs module"; exit 1; }
+        icingacli module enable perfdatagraphsinfluxdbv1 || { msg_error "Failed to enable perfdatagraphsinfluxdbv1 module"; exit 1; }
         msg_ok "Configured InfluxDB v1 connection for PerfData module"
-
-        icingacli module enable perfdatagraphs
-        icingacli module enable perfdatagraphsinfluxdbv1
     else
+        msg_info "Configuring InfluxDB v2 connection"
         read -rp "Organization (org) name [icinga]: " INFLUX_ORG
         INFLUX_ORG=${INFLUX_ORG:-icinga}
         read -rp "InfluxDB token: " INFLUX_TOKEN
 
-        mkdir -p /etc/icingaweb2/modules/perfdatagraphsinfluxdbv2
-        cat <<EOF >/etc/icingaweb2/modules/perfdatagraphsinfluxdbv2/config.ini
+        mkdir -p /etc/icingaweb2/modules/perfdatagraphsinfluxdbv2 || { msg_error "Failed to create InfluxDB v2 module directory"; exit 1; }
+        cat <<EOF >/etc/icingaweb2/modules/perfdatagraphsinfluxdbv2/config.ini || { msg_error "Failed to create InfluxDB v2 config.ini"; exit 1; }
 [influx]
 api_url = "$INFLUX_PROTO://$INFLUX_HOST:$INFLUX_PORT"
 api_org = "$INFLUX_ORG"
@@ -556,11 +537,11 @@ api_bucket = "$INFLUX_BUCKET"
 api_token = "$INFLUX_TOKEN"
 api_tls_insecure = "${INFLUX_SSL_INSECURE_NUM:-0}"
 EOF
-        chown -R root:icingaweb2 /etc/icingaweb2/modules/perfdatagraphsinfluxdbv2
-        chmod 660 /etc/icingaweb2/modules/perfdatagraphsinfluxdbv2/config.ini
+        chown -R root:icingaweb2 /etc/icingaweb2/modules/perfdatagraphsinfluxdbv2 || { msg_error "Failed to set InfluxDB v2 module permissions"; exit 1; }
+        chmod 660 /etc/icingaweb2/modules/perfdatagraphsinfluxdbv2/config.ini || { msg_error "Failed to set InfluxDB v2 config.ini permissions"; exit 1; }
         msg_ok "Configured InfluxDB v2 connection for PerfData module"
 
-        cat <<EOF >/etc/icinga2/features-available/influxdb2.conf
+        cat <<EOF >/etc/icinga2/features-available/influxdb2.conf || { msg_error "Failed to create InfluxDB v2 config"; exit 1; }
 object Influxdb2Writer "influxdb2" {
 host = "$INFLUX_HOST"
 port = $INFLUX_PORT
@@ -585,22 +566,22 @@ service_template = {
 }
 }
 EOF
-        icingacli module enable perfdatagraphs
-        icingacli module enable perfdatagraphsinfluxdbv2
+        icingacli module enable perfdatagraphs || { msg_error "Failed to enable perfdatagraphs module"; exit 1; }
+        icingacli module enable perfdatagraphsinfluxdbv2 || { msg_error "Failed to enable perfdatagraphsinfluxdbv2 module"; exit 1; }
+        msg_ok "Configured InfluxDB v2 connection"
     fi
-    icinga2 feature enable influxdb${INFLUX_VER}
-    systemctl restart icinga2
-    msg_ok "Configured InfluxDB connection for PerfData module"
+    icinga2 feature enable influxdb${INFLUX_VER} || { msg_error "Failed to enable InfluxDB feature in Icinga2"; exit 1; }
+    systemctl restart icinga2 || { msg_error "Failed to restart Icinga2 after InfluxDB config"; exit 1; }
+    msg_ok "Enabled InfluxDB connection from iciniga2 Core"
 fi
 
-cd /usr/share/icingaweb2/public/css/themes
-wget https://raw.githubusercontent.com/lazaroblanc/icingaweb2-dark-theme/master/dark-theme.less
-git clone https://github.com/Al2Klimov/icingaweb2-theme-apocalypse.git /usr/share/icingaweb2/modules/apocalypse
-icingacli module enable apocalypse
-
+msg_info "Adding some extra Icinga Web 2 themes"
+wget -q -O /usr/share/icingaweb2/public/css/themes/dark-theme.less https://raw.githubusercontent.com/lazaroblanc/icingaweb2-dark-theme/master/dark-theme.less || { msg_error "Failed to download dark theme"; exit 1; }
+git clone https://github.com/Al2Klimov/icingaweb2-theme-apocalypse.git /usr/share/icingaweb2/modules/apocalypse || { msg_error "Failed to clone apocalypse theme"; exit 1; }
+icingacli module enable apocalypse || { msg_error "Failed to enable apocalypse theme"; exit 1; }
 msg_ok "Added some extra themes"
 
-msg_info "Icinga2 LXC setup complete."
+
 echo "--- Database credentials ---"
 echo "IcingaDB name:    icingadb"
 echo "IcingaDB user:     icingadb"
