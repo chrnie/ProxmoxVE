@@ -302,7 +302,8 @@ frequencyType = "ipl\\Scheduler\\RRule"
 EOF
         chmod 660 /etc/icingaweb2/modules/x509/config.ini || { msg_error "Failed to set x509 jobs.ini permissions"; exit 1; }
         icingacli x509 migrate --author "proxmox init" || { msg_error "Failed to migrate x509 module"; exit 1; }
-        systemctl restart icinga-x509.service
+        systemctl restart icinga-x509.service || { msg_error "Failed to restart icinga-x509 service"; exit 1; }
+        icingacli x509 import --file /etc/ssl/certs/ca-certificates.crt > /dev/null || { msg_error "Failed to import CA certificates"; exit 1; }
         icingacli x509 scan --job LAN --full || { msg_error "Failed to start x509 scan job"; exit 1; }
         break
     elif [[ "$X509_LAN_CIDR" == "n" ]]; then
@@ -371,7 +372,7 @@ icingacli director host create "$FQDN" --json "{
 }" > /dev/null || { msg_error "Failed to create Icinga Director host"; exit 1; }
 msg_ok "Created Icinga Director host for local container"
 msg_info "Importing Icinga Director x509 monitoring basket"
-base64 -d <<'EOF' | gunzip -c | icingacli director basket restore || { msg_error "Failed to restore x509 basket"; exit 1; }
+base64 -d <<'EOF' | gunzip -c | icingacli director basket restore > /dev/null || { msg_error "Failed to restore x509 basket"; exit 1; }
 H4sICHqsdmkAA0RpcmVjdG9yLUJhc2tldF94NTA5XzgyODc4ZGUuanNvbgDNWW1v2zYQ/t5fIQj5
 VFSN5Ve5wD506bBmaLsiCbAB8ybQ1MlhI4kaSSUxgvz3HSnLLxJly40LLJ9s80jePXf33B3z9MrB
 P/eXRwUiI8kFT1OSRe4758ksmEVGWbYgNGHe46g33Vkz60QsihQyJRtLZtnzSJLwB09CEnuSLTKI
@@ -434,10 +435,9 @@ icingacli module enable incubator > /dev/null || msg_error "Warning: Failed to e
 icingacli module enable director > /dev/null || msg_error "Warning: Failed to enable director module"
 icingacli module disable setup > /dev/null || msg_error "Warning: Failed to disable setup module"
 msg_ok "Enabled additional Icinga Web 2 modules"
-echo
 echo "--- InfluxDB connection for PerfData ---"
 while true; do
-    echo ;read -rp "Use remote InfluxDB server? (y/n): " INFLUX_REMOTE
+    read -rp "Use remote InfluxDB server? (y/n): " INFLUX_REMOTE
     if [[ "$INFLUX_REMOTE" == "y" || "$INFLUX_REMOTE" == "n" ]]; then break; fi
 done
 if [[ "$INFLUX_REMOTE" == "y" ]]; then
@@ -565,7 +565,7 @@ EOF
         icingacli module enable perfdatagraphsinfluxdbv2 > /dev/null || { msg_error "Failed to enable perfdatagraphsinfluxdbv2 module"; exit 1; }
         msg_ok "Configured InfluxDB v2 connection"
     fi
-    icinga2 feature enable influxdb${INFLUX_VER} || { msg_error "Failed to enable InfluxDB feature in Icinga2"; exit 1; }
+    icinga2 feature enable influxdb${INFLUX_VER} > /dev/null || { msg_error "Failed to enable InfluxDB feature in Icinga2"; exit 1; }
     systemctl restart icinga2 || { msg_error "Failed to restart Icinga2 after InfluxDB config"; exit 1; }
     msg_ok "Enabled InfluxDB connection from iciniga2 Core"
 else
@@ -576,6 +576,7 @@ msg_info "Adding some extra Icinga Web 2 themes"
 wget -q -O /usr/share/icingaweb2/public/css/themes/dark-theme.less https://raw.githubusercontent.com/lazaroblanc/icingaweb2-dark-theme/master/dark-theme.less || { msg_error "Failed to download dark theme"; exit 1; }
 git clone --quiet https://github.com/Al2Klimov/icingaweb2-theme-apocalypse.git /usr/share/icingaweb2/modules/apocalypse || { msg_error "Failed to clone apocalypse theme"; exit 1; }
 icingacli module enable apocalypse > /dev/null || { msg_error "Failed to enable apocalypse theme"; exit 1; }
+chown www-data:icingaweb2 /etc/icingaweb2/modules/* || { msg_error "Failed to set permissions on modules"; exit 1; }
 msg_ok "Added some extra themes"
 
 
