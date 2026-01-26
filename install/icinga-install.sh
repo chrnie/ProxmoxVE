@@ -322,11 +322,213 @@ EOF
         chmod 660 /etc/icingaweb2/modules/x509/config.ini || { msg_error "Failed to set x509 jobs.ini permissions"; exit 1; }
         icingacli x509 migrate --author "proxmox init" --verbose || { msg_error "Failed to migrate x509 module"; exit 1; }
         systemctl restart icinga-x509.service
+        # Add basket with x509 automations
+        icingacli director basket restore <<EOF || { msg_error "Failed to restore x509 basket"; exit 1; }
+{
+    "ExternalCommand": {
+        "icingacli-x509": {
+            "arguments": {
+                "--allow-self-signed": {
+                    "description": "Ignore if a certificate or its issuer has been self-signed",
+                    "set_if": "$icingacli_x509_allow_self_signed$"
+                },
+                "--critical": {
+                    "description": "Less remaining time results in state CRITICAL",
+                    "value": "$icingacli_x509_critical$"
+                },
+                "--host": {
+                    "description": "A hosts name",
+                    "value": "$icingacli_x509_host$"
+                },
+                "--ip": {
+                    "description": "A hosts IP address",
+                    "value": "$icingacli_x509_ip$"
+                },
+                "--port": {
+                    "description": "The port to check in particular",
+                    "value": "$icingacli_x509_port$"
+                },
+                "--warning": {
+                    "description": "Less remaining time results in state WARNING",
+                    "value": "$icingacli_x509_warning$"
+                }
+            },
+            "command": "/usr/bin/icingacli x509 check host",
+            "fields": [
+                {
+                    "datafield_id": 1881,
+                    "is_required": "n",
+                    "var_filter": null
+                }
+            ],
+            "methods_execute": "PluginCheck",
+            "object_name": "icingacli-x509",
+            "object_type": "external_object",
+            "timeout": 60,
+            "uuid": "4c11d751-9a59-4b8c-88d9-3357c64fe57e"
+        }
+    },
+    "ServiceTemplate": {
+        "tpl-service-x509-cert": {
+            "check_command": "icingacli-x509",
+            "fields": [],
+            "imports": [
+                "tpl-service-generic"
+            ],
+            "object_name": "tpl-service-x509-cert",
+            "object_type": "template",
+            "use_agent": false,
+            "uuid": "fcf7dad8-091b-4c1d-998d-2f077d97fcf4",
+            "vars": {
+                "criticality": "B",
+                "icingacli_x509_host": "$host.name$"
+            }
+        }
+    },
+    "ServiceSet": {
+        "Certificate x509 Module": {
+            "assign_filter": "\"x509-certs\"=host.vars.tags",
+            "description": "checks the certificate state agains the internal database, using icingacli",
+            "object_name": "Certificate x509 Module",
+            "object_type": "template",
+            "services": [
+                {
+                    "fields": [],
+                    "imports": [
+                        "tpl-service-x509-cert"
+                    ],
+                    "object_name": "tpl-service-x509-cert",
+                    "object_type": "object",
+                    "uuid": "5efa4136-a59c-4c28-9d18-035fb6f9d7c8"
+                }
+            ],
+            "uuid": "03280e01-08fa-45cb-aad6-a035856ec56a"
+        }
+    },
+    "ImportSource": {
+        "x509-hosts": {
+            "key_column": "host_name",
+            "modifiers": [
+                {
+                    "priority": "1",
+                    "property_name": "host_address",
+                    "provider_class": "Icinga\\Module\\Director\\PropertyModifier\\PropertyModifierRegexReplace",
+                    "settings": {
+                        "pattern": "/^.*$/",
+                        "replacement": "x509-certs",
+                        "string": "*",
+                        "when_not_matched": "keep"
+                    },
+                    "target_property": "tags"
+                },
+                {
+                    "priority": "2",
+                    "property_name": "tags",
+                    "provider_class": "Icinga\\Module\\Director\\PropertyModifier\\PropertyModifierSplit",
+                    "settings": {
+                        "delimiter": ",",
+                        "when_empty": "empty_array"
+                    },
+                    "target_property": "tags"
+                }
+            ],
+            "provider_class": "Icinga\\Module\\X509\\ProvidedHook\\HostsImportSource",
+            "settings": {},
+            "source_name": "x509-hosts"
+        }
+    },
+    "SyncRule": {
+        "sync-x509-hosts": {
+            "object_type": "host",
+            "properties": [
+                {
+                    "destination_field": "object_name",
+                    "filter_expression": null,
+                    "merge_policy": "override",
+                    "priority": "1",
+                    "source": "x509-hosts",
+                    "source_expression": "${host_name_or_ip}"
+                },
+                {
+                    "destination_field": "import",
+                    "filter_expression": null,
+                    "merge_policy": "override",
+                    "priority": "2",
+                    "source": "x509-hosts",
+                    "source_expression": "tpl-host-without-ping"
+                },
+                {
+                    "destination_field": "vars.tags",
+                    "filter_expression": null,
+                    "merge_policy": "merge",
+                    "priority": "3",
+                    "source": "x509-hosts",
+                    "source_expression": "${tags}"
+                }
+            ],
+            "purge_action": "delete",
+            "purge_existing": true,
+            "rule_name": "sync-x509-hosts",
+            "update_policy": "merge"
+        }
+    },
+    "DirectorJob": {
+        "10: Import x509 Hosts": {
+            "disabled": "n",
+            "job_class": "Icinga\\Module\\Director\\Job\\ImportJob",
+            "job_name": "10: Import x509 Hosts",
+            "run_interval": "900",
+            "settings": {
+                "run_import": "y",
+                "source": "x509-hosts"
+            },
+            "timeperiod": "7x24"
+        },
+        "20: Sync x509 data to Host Objects": {
+            "disabled": "n",
+            "job_class": "Icinga\\Module\\Director\\Job\\SyncJob",
+            "job_name": "20: Sync x509 data to Host Objects",
+            "run_interval": "900",
+            "settings": {
+                "apply_changes": true,
+                "rule": "sync-x509-hosts"
+            },
+            "timeperiod": "7x24"
+        },
+        "30: Deploy Config": {
+            "disabled": "n",
+            "job_class": "Icinga\\Module\\Director\\Job\\ConfigJob",
+            "job_name": "30: Deploy Config",
+            "run_interval": "900",
+            "settings": {
+                "deploy_when_changed": "y",
+                "force_generate": "n",
+                "grace_period": "600"
+            },
+            "timeperiod": "7x24"
+        }
+    },
+    "Datafield": {
+        "1881": {
+            "uuid": "e89e3cc3-1771-4df0-b492-ff8bd652c236",
+            "varname": "icingacli_x509_host",
+            "caption": "icingacli_x509_host",
+            "description": "A hosts name",
+            "datatype": "Icinga\\Module\\Director\\DataType\\DataTypeString",
+            "format": null,
+            "settings": {},
+            "category": null
+        }
+    }
+}
+EOF
         break
     elif [[ "$X509_LAN_CIDR" == "n" ]]; then
         break
     fi
 done
+
+
 msg_ok "Configured x509 module"
 
 mysql notifications < /usr/share/icinga-notifications/schema/mysql/schema.sql || { msg_error "Failed to import notifications schema"; exit 1; }
