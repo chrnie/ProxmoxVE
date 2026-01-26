@@ -371,7 +371,7 @@ icingacli director host create "$FQDN" --json "{
 }" || { msg_error "Failed to create Icinga Director host"; exit 1; }
 msg_ok "Created Icinga Director host for local container"
 msg_info "Importing Icinga Director x509 monitoring basket"
-base64 -d <<'EOF' >/tmp/x509_basket.json.gz || { msg_error "Failed to create x509 basket file"; exit 1; }
+base64 -d <<'EOF' | gunzip -c | icingacli director basket restore || { msg_error "Failed to restore x509 basket"; exit 1; }
 H4sICHqsdmkAA0RpcmVjdG9yLUJhc2tldF94NTA5XzgyODc4ZGUuanNvbgDNWW1v2zYQ/t5fIQj5
 VFSN5Ve5wD506bBmaLsiCbAB8ybQ1MlhI4kaSSUxgvz3HSnLLxJly40LLJ9s80jePXf33B3z9MrB
 P/eXRwUiI8kFT1OSRe4758ksmEVGWbYgNGHe46g33Vkz60QsihQyJRtLZtnzSJLwB09CEnuSLTKI
@@ -403,8 +403,6 @@ XQgcS8IN3mPU6fvds0tk1RNqjcaCwG+6qpqKIZjCgNKB508mvjeM4p43H077XhwH82g86tP+YGx5
 n2q8c249NtUfksn6EaeDdPf/e5gn46rrbI8njcoNSm0+XZdjXv1Nkguc56yFeW+brR+KFlws64/M
 K9+8ev4Ps1OGN+0bAAA=
 EOF
-gunzip -c /tmp/x509_basket.json.gz | icingacli director basket restore || { msg_error "Failed to restore x509 basket"; exit 1; }
-rm -f /tmp/x509_basket.json.gz || { msg_error "Failed to remove temporary x509 basket file"; exit 1; }
 msg_ok "Imported Icinga Director x509 monitoring basket"
 
 msg_info "Running Icinga Director import and sync"
