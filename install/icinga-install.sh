@@ -18,9 +18,8 @@ FQDN=$(hostname -f)
 
 msg_info "Setting up Icinga Repository"
 wget -q -O icinga-archive-keyring.deb "https://packages.icinga.com/icinga-archive-keyring_latest+debian${VERSION_ID}.deb" || { msg_error "Failed to download Icinga archive keyring"; exit 1; }
-apt install -qq -y ./icinga-archive-keyring.deb || { msg_error "Failed to install Icinga archive keyring"; exit 1; }
-echo "deb [signed-by=/usr/share/keyrings/icinga-archive-keyring.gpg] https://packages.icinga.com/debian icinga-${VERSION_CODENAME} main" > \
- /etc/apt/sources.list.d/${VERSION_CODENAME}-icinga.list || { msg_error "Failed to add Icinga repository"; exit 1; }
+apt install -qq -y ./icinga-archive-keyring.deb > /dev/null || { msg_error "Failed to install Icinga archive keyring"; exit 1; }
+echo "deb [signed-by=/usr/share/keyrings/icinga-archive-keyring.gpg] https://packages.icinga.com/debian icinga-${VERSION_CODENAME} main" > /etc/apt/sources.list.d/${VERSION_CODENAME}-icinga.list || { msg_error "Failed to add Icinga repository"; exit 1; }
 msg_ok "Set up Icinga Repository"
 
 msg_info "Adding Netways extras and plugins repository"
@@ -45,7 +44,7 @@ apt-get install -qq -y \
 msg_ok "Installed Icinga"
 
 msg_info "Disable Apache default site and redirect / to /icingaweb2"
-a2dissite 000-default.conf || msg_error "Warning: Failed to disable default Apache site"
+a2dissite 000-default.conf > /dev/null || msg_error "Warning: Failed to disable default Apache site"
 cat <<EOF >/etc/apache2/sites-available/icingaweb2-redirect.conf || { msg_error "Failed to create Apache configuration"; exit 1; }
 <VirtualHost *:80>
     ServerAdmin webmaster@localhost
@@ -53,12 +52,12 @@ cat <<EOF >/etc/apache2/sites-available/icingaweb2-redirect.conf || { msg_error 
     RedirectMatch ^/$ /icingaweb2/
 </VirtualHost>
 EOF
-a2ensite icingaweb2-redirect.conf || { msg_error "Failed to enable Apache site"; exit 1; }
+a2ensite icingaweb2-redirect.conf > /dev/null || { msg_error "Failed to enable Apache site"; exit 1; }
 msg_ok "Installed Apache and configured Icinga Web 2 redirect"
 systemctl reload apache2 || { msg_error "Failed to reload Apache"; exit 1; }
 
 # Enable and start services
-systemctl enable icinga2 apache2 mariadb --now || { msg_error "Failed to enable and start services"; exit 1; }
+systemctl enable icinga2 apache2 mariadb --now > /dev/null || { msg_error "Failed to enable and start services"; exit 1; }
 msg_info "Started and enabled Services"
 
 
@@ -101,8 +100,8 @@ sed -i "s/password: CHANGEME/password: ${ICINGA_DB_PW}/g" /etc/icingadb/config.y
 systemctl enable icingadb-redis icingadb --now || { msg_error "Failed to enable IcingaDB services"; exit 1; }
 msg_ok "Configured IcingaDB daemon connection to mysql database"
 
-icinga2 node setup --master --disable-confd || { msg_error "Failed to setup Icinga2 node"; exit 1; }
-icinga2 feature enable icingadb || { msg_error "Failed to enable Icinga2 IcingaDB feature"; exit 1; }
+icinga2 node setup --master --disable-confd > /dev/null || { msg_error "Failed to setup Icinga2 node"; exit 1; }
+icinga2 feature enable icingadb > /dev/null || { msg_error "Failed to enable Icinga2 IcingaDB feature"; exit 1; }
 ICINGA_API_ROOT_PW=$(grep 'password' /etc/icinga2/conf.d/api-users.conf | sed 's/.*password = \"//;s/"$//') || { msg_error "Failed to retrieve Icinga API password"; exit 1; }
 usermod -aG icingaweb2 nagios || { msg_error "Failed to add nagios user to icingaweb2 group"; exit 1; }
 systemctl restart icingadb icinga2 || { msg_error "Failed to restart Icinga2 or IcingaDB"; exit 1; }
@@ -274,7 +273,8 @@ chown -R root:icingaweb2 /etc/icingaweb2/modules/x509 || { msg_error "Failed to 
 chmod 660 /etc/icingaweb2/modules/x509/config.ini || { msg_error "Failed to set x509 file permissions"; exit 1; }
 icingacli module enable x509 || { msg_error "Failed to enable x509 module"; exit 1; }
 msg_ok "Configured x509 module"
-msg_info "Setting up x509 scan job"
+echo "test"
+#msg_info "Setting up x509 scan job"
 while true; do
     echo
     read -rp "Add a network to the x509 certificate module[Y/n]: " X509_LAN_CIDR
