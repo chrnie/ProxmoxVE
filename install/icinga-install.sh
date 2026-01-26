@@ -31,7 +31,7 @@ msg_ok "Set up Netways Repositories"
 
 msg_info "Adding Linuxfabrik plugins repository"
 mkdir -p /etc/apt/keyrings || { msg_error "Failed to create /etc/apt/keyrings directory"; exit 1; }
-wget https://repo.linuxfabrik.ch/linuxfabrik.key --output-document=/etc/apt/keyrings/linuxfabrik.asc || { msg_error "Failed to download Linuxfabrik GPG key"; exit 1; }
+wget -q https://repo.linuxfabrik.ch/linuxfabrik.key --output-document=/etc/apt/keyrings/linuxfabrik.asc || { msg_error "Failed to download Linuxfabrik GPG key"; exit 1; }
 echo "deb [signed-by=/etc/apt/keyrings/linuxfabrik.asc] https://repo.linuxfabrik.ch/monitoring-plugins/debian/ ${VERSION_CODENAME}-release main" > /etc/apt/sources.list.d/linuxfabrik-monitoring-plugins.list || { msg_error "Failed to add Linuxfabrik repository"; exit 1; }
 msg_ok "Set up Linuxfabrik plugins repository"
 
