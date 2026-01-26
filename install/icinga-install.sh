@@ -333,11 +333,11 @@ mysql icingaweb -e "INSERT INTO icingaweb_user (name, active, password_hash)
 msg_ok "Configured Icingaweb initial user"
 
 msg_info "Importing Icinga Director Linuxfabrik monitoring basket"
-git clone https://github.com/Linuxfabrik/monitoring-plugins.git /opt/monitoring-plugins || { msg_error "Failed to clone Linuxfabrik monitoring plugins"; exit 1; }
+git clone --quiet https://github.com/Linuxfabrik/monitoring-plugins.git /opt/monitoring-plugins || { msg_error "Failed to clone Linuxfabrik monitoring plugins"; exit 1; }
 cd /opt/monitoring-plugins || { msg_error "Failed to change to monitoring plugins directory"; exit 1; }
 #git checkout v2.2.1 || { msg_error "Failed to checkout monitoring plugins version"; exit 1; }
 tools/basket-join > /dev/null || { msg_error "Failed to join basket"; exit 1; }
-icingacli director basket restore < icingaweb2-module-director-basket.json || { msg_error "Failed to restore director basket"; exit 1; }
+icingacli director basket restore < icingaweb2-module-director-basket.json > /dev/null || { msg_error "Failed to restore director basket"; exit 1; }
 msg_ok "Imported Icinga Director Linuxfabrik monitoring basket"
 
 icingacli director host create "$FQDN" --json "{
@@ -368,7 +368,7 @@ icingacli director host create "$FQDN" --json "{
             \"debian13\"
         ]
     }
-}" || { msg_error "Failed to create Icinga Director host"; exit 1; }
+}" > /dev/null || { msg_error "Failed to create Icinga Director host"; exit 1; }
 msg_ok "Created Icinga Director host for local container"
 msg_info "Importing Icinga Director x509 monitoring basket"
 base64 -d <<'EOF' | gunzip -c | icingacli director basket restore || { msg_error "Failed to restore x509 basket"; exit 1; }
@@ -406,38 +406,35 @@ EOF
 msg_ok "Imported Icinga Director x509 monitoring basket"
 
 msg_info "Running Icinga Director import and sync"
-icingacli director importsource run --id 1 || { msg_error "Failed to run import source"; exit 1; }
-icingacli director syncrule run --id 1 || { msg_error "Failed to run sync rule"; exit 1; }
-
-icingacli director config deploy || { msg_error "Failed to deploy Icinga Director configuration"; exit 1; }
+icingacli director importsource run --id 1 > /dev/null || { msg_error "Failed to run import source"; exit 1; }
+icingacli director syncrule run --id 1 > /dev/null || { msg_error "Failed to run sync rule"; exit 1; }
+icingacli director config deploy > /dev/null || { msg_error "Failed to deploy Icinga Director configuration"; exit 1; }
 msg_ok "Deployed Icinga Director configuration"
 
 msg_info "Installing Icinga Proxmox VE tools"
-git clone https://github.com/nbuchwitz/icingaweb2-module-pve /usr/share/icingaweb2/modules/pve || { msg_error "Failed to clone Proxmox VE module"; exit 1; }
-wget https://raw.githubusercontent.com/nbuchwitz/check_pve/refs/heads/main/check_pve.py -O /usr/lib64/nagios/plugins/check_pve.py || { msg_error "Failed to download check_pve.py"; exit 1; }
+git clone --quiet https://github.com/nbuchwitz/icingaweb2-module-pve /usr/share/icingaweb2/modules/pve || { msg_error "Failed to clone Proxmox VE module"; exit 1; }
+wget -q https://raw.githubusercontent.com/nbuchwitz/check_pve/refs/heads/main/check_pve.py -O /usr/lib64/nagios/plugins/check_pve.py || { msg_error "Failed to download check_pve.py"; exit 1; }
 chmod +x /usr/lib64/nagios/plugins/check_pve.py || { msg_error "Failed to set check_pve.py executable"; exit 1; }
 mkdir -p /etc/icinga2/zones.d/global-templates || { msg_error "Failed to create Icinga2 templates directory"; exit 1; }
-wget https://raw.githubusercontent.com/nbuchwitz/check_pve/refs/heads/main/icinga2/command.conf -O /etc/icinga2/zones.d/global-templates/commands-pve.conf || { msg_error "Failed to download Proxmox VE commands"; exit 1; }
-icingacli module enable pve || { msg_error "Failed to enable PVE module"; exit 1; }
+wget -q https://raw.githubusercontent.com/nbuchwitz/check_pve/refs/heads/main/icinga2/command.conf -O /etc/icinga2/zones.d/global-templates/commands-pve.conf || { msg_error "Failed to download Proxmox VE commands"; exit 1; }
+icingacli module enable pve > /dev/null || { msg_error "Failed to enable PVE module"; exit 1; }
 systemctl reload icinga2 || { msg_error "Failed to reload Icinga2"; exit 1; }
 icingacli director kickstart run || { msg_error "Failed to run director kickstart"; exit 1; }
 msg_ok "Installed and enabled nbuchwitz's Proxmox VE module and plugin"
 
 msg_info "Installing Icinga Web 2 map module"
-git clone https://github.com/nbuchwitz/icingaweb2-module-map.git /usr/share/icingaweb2/modules/map || { msg_error "Failed to clone Maps module"; exit 1; }
+git clone --quiet https://github.com/nbuchwitz/icingaweb2-module-map.git /usr/share/icingaweb2/modules/map || { msg_error "Failed to clone Maps module"; exit 1; }
 icingacli module enable map || { msg_error "Failed to enable maps module"; exit 1; }
 msg_ok "Installed and enabled nbuchwitz's map module"
 
 msg_info "Enabling additional Icinga Web 2 modules"
-icingacli module enable businessprocess || msg_error "Warning: Failed to enable businessprocess module"
-icingacli module enable cube || msg_error "Warning: Failed to enable cube module"
-icingacli module enable incubator || msg_error "Warning: Failed to enable incubator module"
-icingacli module enable director || msg_error "Warning: Failed to enable director module"
-icingacli module disable setup || msg_error "Warning: Failed to disable setup module"
+icingacli module enable businessprocess > /dev/null || msg_error "Warning: Failed to enable businessprocess module"
+icingacli module enable cube > /dev/null || msg_error "Warning: Failed to enable cube module"
+icingacli module enable incubator > /dev/null || msg_error "Warning: Failed to enable incubator module"
+icingacli module enable director > /dev/null || msg_error "Warning: Failed to enable director module"
+icingacli module disable setup > /dev/null || msg_error "Warning: Failed to disable setup module"
 msg_ok "Enabled additional Icinga Web 2 modules"
-
-msg_info "Setting up InfluxDB connection"
-echo 
+echo
 echo "--- InfluxDB connection for PerfData ---"
 while true; do
     echo ;read -rp "Use remote InfluxDB server? (y/n): " INFLUX_REMOTE
@@ -477,7 +474,7 @@ if [[ "$INFLUX_REMOTE" == "y" ]]; then
     INFLUX_BUCKET=${INFLUX_BUCKET:-icinga}
 
     if [[ "$INFLUX_VER" == "1" ]]; then
-        msg_info "Configuring InfluxDB v1 connection"
+        echo "Configuring InfluxDB v1 connection"
         read -rp "InfluxDB username: " INFLUX_USER
         read -rsp "InfluxDB password: " INFLUX_PW;
         
@@ -521,7 +518,7 @@ EOF
         icingacli module enable perfdatagraphsinfluxdbv1 || { msg_error "Failed to enable perfdatagraphsinfluxdbv1 module"; exit 1; }
         msg_ok "Configured InfluxDB v1 connection for PerfData module"
     else
-        msg_info "Configuring InfluxDB v2 connection"
+        echo "Configuring InfluxDB v2 connection"
         read -rp "Organization (org) name [icinga]: " INFLUX_ORG
         INFLUX_ORG=${INFLUX_ORG:-icinga}
         read -rp "InfluxDB token: " INFLUX_TOKEN
