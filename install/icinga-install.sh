@@ -514,8 +514,8 @@ api_tls_insecure = "${INFLUX_SSL_INSECURE_NUM:-0}"
 EOF
         chown -R root:icingaweb2 /etc/icingaweb2/modules/perfdatagraphsinfluxdbv1 || { msg_error "Failed to set InfluxDB v1 module permissions"; exit 1; }
         chmod 660 /etc/icingaweb2/modules/perfdatagraphsinfluxdbv1/config.ini || { msg_error "Failed to set InfluxDB v1 config.ini permissions"; exit 1; }
-        icingacli module enable perfdatagraphs || { msg_error "Failed to enable perfdatagraphs module"; exit 1; }
-        icingacli module enable perfdatagraphsinfluxdbv1 || { msg_error "Failed to enable perfdatagraphsinfluxdbv1 module"; exit 1; }
+        icingacli module enable perfdatagraphs > /dev/null || { msg_error "Failed to enable perfdatagraphs module"; exit 1; }
+        icingacli module enable perfdatagraphsinfluxdbv1 > /dev/null || { msg_error "Failed to enable perfdatagraphsinfluxdbv1 module"; exit 1; }
         msg_ok "Configured InfluxDB v1 connection for PerfData module"
     else
         echo "Configuring InfluxDB v2 connection"
@@ -561,19 +561,21 @@ service_template = {
 }
 }
 EOF
-        icingacli module enable perfdatagraphs || { msg_error "Failed to enable perfdatagraphs module"; exit 1; }
-        icingacli module enable perfdatagraphsinfluxdbv2 || { msg_error "Failed to enable perfdatagraphsinfluxdbv2 module"; exit 1; }
+        icingacli module enable perfdatagraphs > /dev/null || { msg_error "Failed to enable perfdatagraphs module"; exit 1; }
+        icingacli module enable perfdatagraphsinfluxdbv2 > /dev/null || { msg_error "Failed to enable perfdatagraphsinfluxdbv2 module"; exit 1; }
         msg_ok "Configured InfluxDB v2 connection"
     fi
     icinga2 feature enable influxdb${INFLUX_VER} || { msg_error "Failed to enable InfluxDB feature in Icinga2"; exit 1; }
     systemctl restart icinga2 || { msg_error "Failed to restart Icinga2 after InfluxDB config"; exit 1; }
     msg_ok "Enabled InfluxDB connection from iciniga2 Core"
+else
+    msg_ok "Skipped InfluxDB configuration"    
 fi
 
 msg_info "Adding some extra Icinga Web 2 themes"
 wget -q -O /usr/share/icingaweb2/public/css/themes/dark-theme.less https://raw.githubusercontent.com/lazaroblanc/icingaweb2-dark-theme/master/dark-theme.less || { msg_error "Failed to download dark theme"; exit 1; }
-git clone https://github.com/Al2Klimov/icingaweb2-theme-apocalypse.git /usr/share/icingaweb2/modules/apocalypse || { msg_error "Failed to clone apocalypse theme"; exit 1; }
-icingacli module enable apocalypse || { msg_error "Failed to enable apocalypse theme"; exit 1; }
+git clone --quiet https://github.com/Al2Klimov/icingaweb2-theme-apocalypse.git /usr/share/icingaweb2/modules/apocalypse || { msg_error "Failed to clone apocalypse theme"; exit 1; }
+icingacli module enable apocalypse > /dev/null || { msg_error "Failed to enable apocalypse theme"; exit 1; }
 msg_ok "Added some extra themes"
 
 
