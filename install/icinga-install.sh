@@ -41,8 +41,8 @@ echo "deb [signed-by=/etc/apt/keyrings/linuxfabrik.asc] https://repo.linuxfabrik
 msg_ok "Set up Linuxfabrik plugins repository"
 
 msg_info "Installing Icinga"
-apt-get update || { msg_error "Failed to update package manager"; exit 1; }
-apt-get install -y \
+apt-get update -qq || { msg_error "Failed to update package manager"; exit 1; }
+apt-get install -y -qq \
   icinga2 icingaweb2 icingadb icingadb-redis \
   pwgen imagemagick php-imagick \
   apache2 mariadb-server openssh-server \
