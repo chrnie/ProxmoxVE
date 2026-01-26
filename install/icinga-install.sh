@@ -273,9 +273,10 @@ EOF
 chown -R root:icingaweb2 /etc/icingaweb2/modules/x509 || { msg_error "Failed to set x509 permissions"; exit 1; }
 chmod 660 /etc/icingaweb2/modules/x509/config.ini || { msg_error "Failed to set x509 file permissions"; exit 1; }
 icingacli module enable x509 || { msg_error "Failed to enable x509 module"; exit 1; }
-
+msg_ok "Configured x509 module"
 msg_info "Setting up x509 scan job"
 while true; do
+    echo
     read -rp "Add a network to the x509 certificate module[Y/n]: " X509_LAN_CIDR
     X509_LAN_CIDR=${X509_LAN_CIDR:-y}
     if [[ "$X509_LAN_CIDR" == "y" ]]; then
