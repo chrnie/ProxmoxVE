@@ -323,7 +323,75 @@ EOF
         icingacli x509 migrate --author "proxmox init" --verbose || { msg_error "Failed to migrate x509 module"; exit 1; }
         systemctl restart icinga-x509.service
         # Add basket with x509 automations
-        icingacli director basket restore <<EOF || { msg_error "Failed to restore x509 basket"; exit 1; }
+        break
+    elif [[ "$X509_LAN_CIDR" == "n" ]]; then
+        break
+    fi
+done
+
+
+msg_ok "Configured x509 module"
+
+mysql notifications < /usr/share/icinga-notifications/schema/mysql/schema.sql || { msg_error "Failed to import notifications schema"; exit 1; }
+mkdir -p /etc/icingaweb2/modules/notifications || { msg_error "Failed to create notifications module directory"; exit 1; }
+cat <<EOF >/etc/icingaweb2/modules/notifications/config.ini || { msg_error "Failed to create notifications config"; exit 1; }
+[database]
+resource = "notifications"
+EOF
+chown -R root:icingaweb2 /etc/icingaweb2/modules/notifications || { msg_error "Failed to set notifications permissions"; exit 1; }
+chmod 660 /etc/icingaweb2/modules/notifications/config.ini || { msg_error "Failed to set notifications file permissions"; exit 1; }
+sed -i "s/password: CHANGEME/password: ${NOTIFICATIONS_DB_PW}/g" /etc/icinga-notifications/config.yml || { msg_error "Failed to configure notifications password"; exit 1; }
+sed -i "s/^icingaweb2-url: http.*/icingaweb2-url: http:\/\/${FQDN}\/icingaweb2/g" /etc/icinga-notifications/config.yml || { msg_error "Failed to configure notifications URL"; exit 1; }
+systemctl restart icinga-desktop-notifications.service || msg_error "Warning: Failed to restart notifications service"
+
+msg_ok "Configured notifications modules"
+
+ICINGAWEB_ADMIN_PW_HASH=$(php -r "echo password_hash('$ICINGAWEB_ADMIN_PW', PASSWORD_DEFAULT);") || { msg_error "Failed to generate password hash"; exit 1; }
+mysql -D icingaweb < /usr/share/icingaweb2/schema/mysql.schema.sql || { msg_error "Failed to import Icinga Web schema"; exit 1; }
+mysql icingaweb -e "INSERT INTO icingaweb_user (name, active, password_hash) 
+          VALUES ('icingaadmin', 1, '$ICINGAWEB_ADMIN_PW_HASH');" || { msg_error "Failed to create Icinga Web admin user"; exit 1; }
+
+msg_ok "Configured Icingaweb initial user"
+
+
+git clone https://github.com/Linuxfabrik/monitoring-plugins.git /opt/monitoring-plugins || { msg_error "Failed to clone Linuxfabrik monitoring plugins"; exit 1; }
+cd /opt/monitoring-plugins || { msg_error "Failed to change to monitoring plugins directory"; exit 1; }
+git checkout v2.2.1 || { msg_error "Failed to checkout monitoring plugins version"; exit 1; }
+tools/basket-join || { msg_error "Failed to join basket"; exit 1; }
+icingacli director basket restore < icingaweb2-module-director-basket.json || { msg_error "Failed to restore director basket"; exit 1; }
+msg_ok "Imported Icinga Director Linuxfabrik monitoring basket"
+
+icingacli director host create "$FQDN" --json "{
+    \"address\": \"127.0.0.1\",
+    \"imports\": [
+        \"tpl-host-linux\"
+    ],
+    \"object_type\": \"object\",
+    \"vars\": {
+        \"_override_servicevars\": {
+            \"Icinga Top Flapping Services\": {
+                \"icinga_topflap_services_password\": \"$ICINGAWEB_ADMIN_PW\",
+                \"icinga_topflap_services_url\": \"http://localhost/icingaweb2/icingadb/history?limit=250\",
+                \"icinga_topflap_services_username\": \"icingaadmin\"
+            },
+            \"Redis Status\": {
+                \"redis_status_port\": \"6380\"
+            },
+            \"Systemd Unit - redis.service\": {
+                \"systemd_unit_unit\": \"icingadb-redis\"
+            }
+        },
+        \"tags\": [
+            \"icinga2\",
+            \"mariadb\",
+            \"icingadb\",
+            \"redis\",
+            \"debian13\"
+        ]
+    }
+}" || { msg_error "Failed to create Icinga Director host"; exit 1; }
+msg_ok "Created Icinga Director host for local container"
+cat <<EOF >/tmp/x509_basket.json
 {
     "ExternalCommand": {
         "icingacli-x509": {
@@ -522,74 +590,9 @@ EOF
     }
 }
 EOF
-        break
-    elif [[ "$X509_LAN_CIDR" == "n" ]]; then
-        break
-    fi
-done
-
-
-msg_ok "Configured x509 module"
-
-mysql notifications < /usr/share/icinga-notifications/schema/mysql/schema.sql || { msg_error "Failed to import notifications schema"; exit 1; }
-mkdir -p /etc/icingaweb2/modules/notifications || { msg_error "Failed to create notifications module directory"; exit 1; }
-cat <<EOF >/etc/icingaweb2/modules/notifications/config.ini || { msg_error "Failed to create notifications config"; exit 1; }
-[database]
-resource = "notifications"
-EOF
-chown -R root:icingaweb2 /etc/icingaweb2/modules/notifications || { msg_error "Failed to set notifications permissions"; exit 1; }
-chmod 660 /etc/icingaweb2/modules/notifications/config.ini || { msg_error "Failed to set notifications file permissions"; exit 1; }
-sed -i "s/password: CHANGEME/password: ${NOTIFICATIONS_DB_PW}/g" /etc/icinga-notifications/config.yml || { msg_error "Failed to configure notifications password"; exit 1; }
-sed -i "s/^icingaweb2-url: http.*/icingaweb2-url: http:\/\/${FQDN}\/icingaweb2/g" /etc/icinga-notifications/config.yml || { msg_error "Failed to configure notifications URL"; exit 1; }
-systemctl restart icinga-desktop-notifications.service || msg_error "Warning: Failed to restart notifications service"
-
-msg_ok "Configured notifications modules"
-
-ICINGAWEB_ADMIN_PW_HASH=$(php -r "echo password_hash('$ICINGAWEB_ADMIN_PW', PASSWORD_DEFAULT);") || { msg_error "Failed to generate password hash"; exit 1; }
-mysql -D icingaweb < /usr/share/icingaweb2/schema/mysql.schema.sql || { msg_error "Failed to import Icinga Web schema"; exit 1; }
-mysql icingaweb -e "INSERT INTO icingaweb_user (name, active, password_hash) 
-          VALUES ('icingaadmin', 1, '$ICINGAWEB_ADMIN_PW_HASH');" || { msg_error "Failed to create Icinga Web admin user"; exit 1; }
-
-msg_ok "Configured Icingaweb initial user"
-
-
-git clone https://github.com/Linuxfabrik/monitoring-plugins.git /opt/monitoring-plugins || { msg_error "Failed to clone Linuxfabrik monitoring plugins"; exit 1; }
-cd /opt/monitoring-plugins || { msg_error "Failed to change to monitoring plugins directory"; exit 1; }
-git checkout v2.2.1 || { msg_error "Failed to checkout monitoring plugins version"; exit 1; }
-tools/basket-join || { msg_error "Failed to join basket"; exit 1; }
-icingacli director basket restore < icingaweb2-module-director-basket.json || { msg_error "Failed to restore director basket"; exit 1; }
-msg_ok "Imported Icinga Director Linuxfabrik monitoring basket"
-
-icingacli director host create "$FQDN" --json "{
-    \"address\": \"127.0.0.1\",
-    \"imports\": [
-        \"tpl-host-linux\"
-    ],
-    \"object_type\": \"object\",
-    \"vars\": {
-        \"_override_servicevars\": {
-            \"Icinga Top Flapping Services\": {
-                \"icinga_topflap_services_password\": \"$ICINGAWEB_ADMIN_PW\",
-                \"icinga_topflap_services_url\": \"http://localhost/icingaweb2/icingadb/history?limit=250\",
-                \"icinga_topflap_services_username\": \"icingaadmin\"
-            },
-            \"Redis Status\": {
-                \"redis_status_port\": \"6380\"
-            },
-            \"Systemd Unit - redis.service\": {
-                \"systemd_unit_unit\": \"icingadb-redis\"
-            }
-        },
-        \"tags\": [
-            \"icinga2\",
-            \"mariadb\",
-            \"icingadb\",
-            \"redis\",
-            \"debian13\"
-        ]
-    }
-}" || { msg_error "Failed to create Icinga Director host"; exit 1; }
-msg_ok "Created Icinga Director host for local container"
+icingacli director basket restore < /tmp/x509_basket.json || { msg_error "Failed to restore x509 basket"; exit 1; }
+rm -f /tmp/x509_basket.json
+msg_ok "Imported Icinga Director x509 monitoring basket"
 icingacli director config deploy || { msg_error "Failed to deploy Icinga Director configuration"; exit 1; }
 msg_ok "Deployed Icinga Director configuration"
 
