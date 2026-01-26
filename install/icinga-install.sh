@@ -322,6 +322,7 @@ EOF
         chmod 660 /etc/icingaweb2/modules/x509/config.ini || { msg_error "Failed to set x509 jobs.ini permissions"; exit 1; }
         icingacli x509 migrate --author "proxmox init" --verbose || { msg_error "Failed to migrate x509 module"; exit 1; }
         systemctl restart icinga-x509.service
+        icingacli x509 scan --job LAN --full || { msg_error "Failed to start x509 scan job"; exit 1; }
         # Add basket with x509 automations
         break
     elif [[ "$X509_LAN_CIDR" == "n" ]]; then
@@ -426,6 +427,10 @@ EOF
 gunzip -c /tmp/x509_basket.json.gz | icingacli director basket restore || { msg_error "Failed to restore x509 basket"; exit 1; }
 rm -f /tmp/x509_basket.json.gz
 msg_ok "Imported Icinga Director x509 monitoring basket"
+
+icingacli director importsource run --id 1 || { msg_error "Failed to run import source"; exit 1; }
+icingacli director syncrule run --id 1 || { msg_error "Failed to run sync rule"; exit 1; }
+
 icingacli director config deploy || { msg_error "Failed to deploy Icinga Director configuration"; exit 1; }
 msg_ok "Deployed Icinga Director configuration"
 
