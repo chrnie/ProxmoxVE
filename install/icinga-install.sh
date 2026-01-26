@@ -17,10 +17,8 @@ DIST=$(awk -F"[)(]+" '/VERSION=/ {print $2}' /etc/os-release)
 FQDN=$(hostname -f)
 
 msg_info "Setting up Icinga Repository"
-wget -O icinga-archive-keyring.deb "https://packages.icinga.com/icinga-archive-keyring_latest+debian$(
- . /etc/os-release; echo "$VERSION_ID"
-).deb" || { msg_error "Failed to download Icinga archive keyring"; exit 1; }
-apt install -y ./icinga-archive-keyring.deb || { msg_error "Failed to install Icinga archive keyring"; exit 1; }
+wget -O icinga-archive-keyring.deb "https://packages.icinga.com/icinga-archive-keyring_latest+debian$(. /etc/os-release; echo "$VERSION_ID").deb" || { msg_error "Failed to download Icinga archive keyring"; exit 1; }
+apt install -y -qq ./icinga-archive-keyring.deb || { msg_error "Failed to install Icinga archive keyring"; exit 1; }
 echo "deb [signed-by=/usr/share/keyrings/icinga-archive-keyring.gpg] https://packages.icinga.com/debian icinga-${DIST} main" > \
  /etc/apt/sources.list.d/${DIST}-icinga.list || { msg_error "Failed to add Icinga repository"; exit 1; }
 msg_ok "Set up Icinga Repository"
@@ -53,7 +51,7 @@ apt-get install -y -qq \
   icingaweb2-module-perfdatagraphs-influxdbv2 \
   icingaweb2-module-perfdatagraphs \
   linuxfabrik-monitoring-plugins \
-  vim git redis-tools || { msg_error "Failed to install Icinga packages"; exit 1; }
+  vim git redis-tools > /dev/null 2>&1 || { msg_error "Failed to install Icinga packages"; exit 1; }
 
 
 # Disable Apache default site and redirect / to /icingaweb2
@@ -358,7 +356,7 @@ msg_ok "Configured Icingaweb initial user"
 git clone https://github.com/Linuxfabrik/monitoring-plugins.git /opt/monitoring-plugins || { msg_error "Failed to clone Linuxfabrik monitoring plugins"; exit 1; }
 cd /opt/monitoring-plugins || { msg_error "Failed to change to monitoring plugins directory"; exit 1; }
 git checkout v2.2.1 || { msg_error "Failed to checkout monitoring plugins version"; exit 1; }
-tools/basket-join || { msg_error "Failed to join basket"; exit 1; }
+tools/basket-join > /dev/null || { msg_error "Failed to join basket"; exit 1; }
 icingacli director basket restore < icingaweb2-module-director-basket.json || { msg_error "Failed to restore director basket"; exit 1; }
 msg_ok "Imported Icinga Director Linuxfabrik monitoring basket"
 
