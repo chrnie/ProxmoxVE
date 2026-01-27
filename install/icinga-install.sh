@@ -45,7 +45,7 @@ setup_deb822_repo \
   "linuxfabrik-monitoring-plugins" \
   "https://repo.linuxfabrik.ch/linuxfabrik.key" \
   "https://repo.linuxfabrik.ch/monitoring-plugins/debian/" \
-  "${VERSION_CODENAME}" \
+  "${VERSION_CODENAME}-release" \
   "main"
 msg_ok "Set up Linuxfabrik plugins repository"
 
