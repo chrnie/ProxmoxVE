@@ -53,9 +53,9 @@ msg_ok "Set up Linuxfabrik plugins repository"
 # pkg_update ## pkg_upgrade disabled because it's an illusion?!
 $STD apt-get upgrade -y
 setup_mariadb
-setup_apache
+# setup_apache ## another docs illusion
 msg_info "Installing Icinga"
-pkg_install icinga2 icingaweb2 icingadb icingadb-redis imagemagick php-imagick openssh-server \
+pkg_install icinga2 icingaweb2 icingadb icingadb-redis imagemagick php-imagick openssh-server apache2 \
   icingadb-web icinga-director icinga-businessprocess icinga-cube icinga-notifications-web icinga-notifications icinga-x509 icingaweb2-module-reporting \
   icingaweb2-module-perfdatagraphs-influxdbv1 icingaweb2-module-perfdatagraphs-influxdbv2 icingaweb2-module-perfdatagraphs \
   linuxfabrik-monitoring-plugins vim git redis-tools pwgen
