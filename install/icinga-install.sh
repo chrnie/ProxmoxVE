@@ -55,7 +55,8 @@ $STD apt-get upgrade -y
 setup_mariadb
 # setup_apache ## another docs illusion
 msg_info "Installing Icinga"
-pkg_install icinga2 icingaweb2 icingadb icingadb-redis imagemagick php-imagick openssh-server apache2 \
+#pkg_install ## will be used later
+$STD apt-get install -y icinga2 icingaweb2 icingadb icingadb-redis imagemagick php-imagick openssh-server apache2 \
   icingadb-web icinga-director icinga-businessprocess icinga-cube icinga-notifications-web icinga-notifications icinga-x509 icingaweb2-module-reporting \
   icingaweb2-module-perfdatagraphs-influxdbv1 icingaweb2-module-perfdatagraphs-influxdbv2 icingaweb2-module-perfdatagraphs \
   linuxfabrik-monitoring-plugins vim git redis-tools pwgen
