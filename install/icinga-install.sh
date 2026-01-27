@@ -49,10 +49,10 @@ setup_deb822_repo \
   "main"
 msg_ok "Set up Linuxfabrik plugins repository"
 
-msg_info "Installing Icinga"
 pkg_update
 setup_mariadb
 setup_apache
+msg_info "Installing Icinga"
 pkg_install icinga2 icingaweb2 icingadb icingadb-redis imagemagick php-imagick openssh-server \
   icingadb-web icinga-director icinga-businessprocess icinga-cube icinga-notifications-web icinga-notifications icinga-x509 icingaweb2-module-reporting \
   icingaweb2-module-perfdatagraphs-influxdbv1 icingaweb2-module-perfdatagraphs-influxdbv2 icingaweb2-module-perfdatagraphs \
