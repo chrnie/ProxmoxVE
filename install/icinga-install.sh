@@ -17,34 +17,50 @@ source /etc/os-release
 FQDN=$(hostname -f)
 
 msg_info "Setting up Icinga Repository"
-wget -q -O icinga-archive-keyring.deb "https://packages.icinga.com/icinga-archive-keyring_latest+debian${VERSION_ID}.deb" || { msg_error "Failed to download Icinga archive keyring"; exit 1; }
-apt-get install -qq -y ./icinga-archive-keyring.deb > /dev/null || { msg_error "Failed to install Icinga archive keyring"; exit 1; }
-echo "deb [signed-by=/usr/share/keyrings/icinga-archive-keyring.gpg] https://packages.icinga.com/debian icinga-${VERSION_CODENAME} main" > /etc/apt/sources.list.d/${VERSION_CODENAME}-icinga.list || { msg_error "Failed to add Icinga repository"; exit 1; }
+setup_deb822_repo \
+  "icinga-stable" \
+  "https://packages.icinga.com/icinga.key" \
+  "https://packages.icinga.com/debian/" \
+  "icinga-${VERSION_CODENAME}" \
+  "main"
 msg_ok "Set up Icinga Repository"
 
 msg_info "Adding Netways extras and plugins repository"
-wget -q -O - https://packages.netways.de/netways-repo.asc | gpg --dearmor > /etc/apt/keyrings/netways.gpg || { msg_error "Failed to add Netways GPG key"; exit 1; }
-echo "deb [signed-by=/etc/apt/keyrings/netways.gpg] https://packages.netways.de/extras/debian ${VERSION_CODENAME} main" > /etc/apt/sources.list.d/netways-extras.list || { msg_error "Failed to add Netways extras repository"; exit 1; }
-echo "deb [signed-by=/etc/apt/keyrings/netways.gpg] https://packages.netways.de/plugins/debian ${VERSION_CODENAME} main" > /etc/apt/sources.list.d/netways-plugins.list || { msg_error "Failed to add Netways plugins repository"; exit 1; }
+setup_deb822_repo \
+  "netways-extras" \
+  "https://packages.netways.de/netways-repo.asc" \
+  "https://packages.netways.de/extras/debian/" \
+  "${VERSION_CODENAME}" \
+  "main"
+setup_deb822_repo \
+  "netways-plugins" \
+  "https://packages.netways.de/netways-repo.asc" \
+  "https://packages.netways.de/plugins/debian/" \
+  "${VERSION_CODENAME}" \
+  "main"
 msg_ok "Set up Netways Repositories"
 
 msg_info "Adding Linuxfabrik plugins repository"
-mkdir -p /etc/apt/keyrings || { msg_error "Failed to create /etc/apt/keyrings directory"; exit 1; }
-wget -q https://repo.linuxfabrik.ch/linuxfabrik.key --output-document=/etc/apt/keyrings/linuxfabrik.asc || { msg_error "Failed to download Linuxfabrik GPG key"; exit 1; }
-echo "deb [signed-by=/etc/apt/keyrings/linuxfabrik.asc] https://repo.linuxfabrik.ch/monitoring-plugins/debian/ ${VERSION_CODENAME}-release main" > /etc/apt/sources.list.d/linuxfabrik-monitoring-plugins.list || { msg_error "Failed to add Linuxfabrik repository"; exit 1; }
+setup_deb822_repo \
+  "linuxfabrik-monitoring-plugins" \
+  "https://repo.linuxfabrik.ch/linuxfabrik.key" \
+  "https://repo.linuxfabrik.ch/monitoring-plugins/debian/" \
+  "${VERSION_CODENAME}" \
+  "main"
 msg_ok "Set up Linuxfabrik plugins repository"
 
 msg_info "Installing Icinga"
-apt-get update -qq || { msg_error "Failed to update package manager"; exit 1; }
-apt-get install -qq -y \
-  icinga2 icingaweb2 icingadb icingadb-redis imagemagick php-imagick apache2 mariadb-server openssh-server \
+pkg_update
+setup_mariadb
+setup_apache
+pkg_install icinga2 icingaweb2 icingadb icingadb-redis imagemagick php-imagick openssh-server \
   icingadb-web icinga-director icinga-businessprocess icinga-cube icinga-notifications-web icinga-notifications icinga-x509 icingaweb2-module-reporting \
   icingaweb2-module-perfdatagraphs-influxdbv1 icingaweb2-module-perfdatagraphs-influxdbv2 icingaweb2-module-perfdatagraphs \
-  linuxfabrik-monitoring-plugins vim git redis-tools pwgen > /dev/null || { msg_error "Failed to install Icinga packages"; exit 1; }
+  linuxfabrik-monitoring-plugins vim git redis-tools pwgen
 msg_ok "Installed Icinga"
 
 msg_info "Disable Apache default site and redirect / to /icingaweb2"
-a2dissite 000-default.conf > /dev/null || msg_error "Warning: Failed to disable default Apache site"
+$STD a2dissite 000-default.conf > /dev/null || msg_error "Warning: Failed to disable default Apache site"
 cat <<EOF >/etc/apache2/sites-available/icingaweb2-redirect.conf || { msg_error "Failed to create Apache configuration"; exit 1; }
 <VirtualHost *:80>
     ServerAdmin webmaster@localhost
@@ -52,7 +68,7 @@ cat <<EOF >/etc/apache2/sites-available/icingaweb2-redirect.conf || { msg_error 
     RedirectMatch ^/$ /icingaweb2/
 </VirtualHost>
 EOF
-a2ensite icingaweb2-redirect.conf > /dev/null || { msg_error "Failed to enable Apache site"; exit 1; }
+$STD a2ensite icingaweb2-redirect.conf > /dev/null || { msg_error "Failed to enable Apache site"; exit 1; }
 msg_ok "Installed Apache and configured Icinga Web 2 redirect"
 systemctl reload apache2 || { msg_error "Failed to reload Apache"; exit 1; }
 
