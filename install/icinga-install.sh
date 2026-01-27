@@ -49,9 +49,9 @@ setup_deb822_repo \
   "main"
 msg_ok "Set up Linuxfabrik plugins repository"
 
-apt-update -y
 
-pkg_update
+# pkg_update ## pkg_upgrade disabled because it's an illusion?!
+$STD apt-get upgrade -y
 setup_mariadb
 setup_apache
 msg_info "Installing Icinga"
@@ -89,7 +89,7 @@ X509_DB_PW="${X509_DB_PW:-$(pwgen -s 20 1)}"
 REPORTING_DB_PW="${REPORTING_DB_PW:-$(pwgen -s 20 1)}"
 ICINGAWEB_ADMIN_PW="${ICINGAWEB_ADMIN_PW:-$(pwgen -s 12 1)}"
 
-cat <<EOF | mysql -u root || { msg_error "Failed to create databases"; exit 1; }
+cat <<EOF | mysql || { msg_error "Failed to create databases"; exit 1; }
 CREATE DATABASE IF NOT EXISTS icingadb;
 CREATE DATABASE IF NOT EXISTS icingaweb;
 CREATE DATABASE IF NOT EXISTS notifications;
@@ -352,7 +352,7 @@ mysql icingaweb -e "INSERT INTO icingaweb_user (name, active, password_hash)
 msg_ok "Configured Icingaweb initial user"
 
 msg_info "Importing Icinga Director Linuxfabrik monitoring basket"
-git clone --quiet https://github.com/Linuxfabrik/monitoring-plugins.git /opt/monitoring-plugins || { msg_error "Failed to clone Linuxfabrik monitoring plugins"; exit 1; }
+$STD git clone https://github.com/Linuxfabrik/monitoring-plugins.git /opt/monitoring-plugins || { msg_error "Failed to clone Linuxfabrik monitoring plugins"; exit 1; }
 cd /opt/monitoring-plugins || { msg_error "Failed to change to monitoring plugins directory"; exit 1; }
 #git checkout v2.2.1 || { msg_error "Failed to checkout monitoring plugins version"; exit 1; }
 tools/basket-join > /dev/null || { msg_error "Failed to join basket"; exit 1; }
@@ -431,18 +431,18 @@ icingacli director config deploy > /dev/null || { msg_error "Failed to deploy Ic
 msg_ok "Deployed Icinga Director configuration"
 
 msg_info "Installing Icinga Proxmox VE tools"
-git clone --quiet https://github.com/nbuchwitz/icingaweb2-module-pve /usr/share/icingaweb2/modules/pve || { msg_error "Failed to clone Proxmox VE module"; exit 1; }
-wget -q https://raw.githubusercontent.com/nbuchwitz/check_pve/refs/heads/main/check_pve.py -O /usr/lib64/nagios/plugins/check_pve.py || { msg_error "Failed to download check_pve.py"; exit 1; }
+$STD git clone https://github.com/nbuchwitz/icingaweb2-module-pve /usr/share/icingaweb2/modules/pve || { msg_error "Failed to clone Proxmox VE module"; exit 1; }
+$STD wget  https://raw.githubusercontent.com/nbuchwitz/check_pve/refs/heads/main/check_pve.py -O /usr/lib64/nagios/plugins/check_pve.py || { msg_error "Failed to download check_pve.py"; exit 1; }
 chmod +x /usr/lib64/nagios/plugins/check_pve.py || { msg_error "Failed to set check_pve.py executable"; exit 1; }
 mkdir -p /etc/icinga2/zones.d/global-templates || { msg_error "Failed to create Icinga2 templates directory"; exit 1; }
-wget -q https://raw.githubusercontent.com/nbuchwitz/check_pve/refs/heads/main/icinga2/command.conf -O /etc/icinga2/zones.d/global-templates/commands-pve.conf || { msg_error "Failed to download Proxmox VE commands"; exit 1; }
+$STD wget https://raw.githubusercontent.com/nbuchwitz/check_pve/refs/heads/main/icinga2/command.conf -O /etc/icinga2/zones.d/global-templates/commands-pve.conf || { msg_error "Failed to download Proxmox VE commands"; exit 1; }
 icingacli module enable pve > /dev/null || { msg_error "Failed to enable PVE module"; exit 1; }
 systemctl reload icinga2 || { msg_error "Failed to reload Icinga2"; exit 1; }
 icingacli director kickstart run || { msg_error "Failed to run director kickstart"; exit 1; }
 msg_ok "Installed and enabled nbuchwitz's Proxmox VE module and plugin"
 
 msg_info "Installing Icinga Web 2 map module"
-git clone --quiet https://github.com/nbuchwitz/icingaweb2-module-map.git /usr/share/icingaweb2/modules/map || { msg_error "Failed to clone Maps module"; exit 1; }
+$STD git clone https://github.com/nbuchwitz/icingaweb2-module-map.git /usr/share/icingaweb2/modules/map || { msg_error "Failed to clone Maps module"; exit 1; }
 icingacli module enable map || { msg_error "Failed to enable maps module"; exit 1; }
 msg_ok "Installed and enabled nbuchwitz's map module"
 
@@ -591,8 +591,8 @@ else
 fi
 
 msg_info "Adding some extra Icinga Web 2 themes"
-wget -q -O /usr/share/icingaweb2/public/css/themes/dark-theme.less https://raw.githubusercontent.com/lazaroblanc/icingaweb2-dark-theme/master/dark-theme.less || { msg_error "Failed to download dark theme"; exit 1; }
-git clone --quiet https://github.com/Al2Klimov/icingaweb2-theme-apocalypse.git /usr/share/icingaweb2/modules/apocalypse || { msg_error "Failed to clone apocalypse theme"; exit 1; }
+$STD wget -O /usr/share/icingaweb2/public/css/themes/dark-theme.less https://raw.githubusercontent.com/lazaroblanc/icingaweb2-dark-theme/master/dark-theme.less || { msg_error "Failed to download dark theme"; exit 1; }
+$STD git clone https://github.com/Al2Klimov/icingaweb2-theme-apocalypse.git /usr/share/icingaweb2/modules/apocalypse || { msg_error "Failed to clone apocalypse theme"; exit 1; }
 icingacli module enable apocalypse > /dev/null || { msg_error "Failed to enable apocalypse theme"; exit 1; }
 chown www-data:icingaweb2 /etc/icingaweb2/modules/* || { msg_error "Failed to set permissions on modules"; exit 1; }
 msg_ok "Added some extra themes"
