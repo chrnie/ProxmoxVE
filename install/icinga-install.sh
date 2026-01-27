@@ -49,6 +49,8 @@ setup_deb822_repo \
   "main"
 msg_ok "Set up Linuxfabrik plugins repository"
 
+apt-update -y
+
 pkg_update
 setup_mariadb
 setup_apache
